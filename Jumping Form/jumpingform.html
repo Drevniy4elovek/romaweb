@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Летающая Форма</title>
+    <style>
+        body { background-color: white; overflow: hidden; }#container { position: relative; width: 100vw; height: 100vh; }
+        .element { position: absolute; /* для движения */ }
+        .tform { width: 150px; height: 30px; } .radform, .boxform { width: 20px; height: 20px; }
+        button { width: 100px; height: 40px; }
+    </style>
+</head>
+<body>
+<div id="container">
+    <input type="text" placeholder="Имя" required class="element tform">
+    <input type="text" placeholder="Фамилия" required class="element tform">
+    <input type="password" placeholder="Пароль" required class="element tform">
+    <label for="agreement" class="element"></label><input type="checkbox" id="agreement" required class="element boxform">
+    <button class="element">Отправить</button>
+</div>
+<script>
+    const container = document.getElementById('container'); const elements = document.querySelectorAll('.element');
+    elements.forEach(element => {  //  Позиционирование и начальные скорости.
+        element.x = Math.random() * (container.offsetWidth - element.offsetWidth);
+        element.y = Math.random() * (container.offsetHeight - element.offsetHeight);
+        element.dx = (Math.random() - 0.5) * 4; //горизонтальная  скорость
+        element.dy = 5;  //  Вертикальная скорость
+        element.rotation = 0; //  Угол поворота
+        element.rotationSpeed = (Math.random() - 0.5) * 0.1; //  Скорость вращения
+        element.style.left = element.x + 'px'; element.style.top = element.y + 'px';});
+
+    function update() {
+        elements.forEach(element => {  // Перемещение и вращение.
+            element.x += element.dx; element.y += element.dy;//  Падение
+            element.rotation += element.rotationSpeed;//  Вращение
+
+            if ((element.x + element.offsetWidth) > container.offsetWidth || element.x < 0) element.dx = -element.dx; //отскок от стенок
+            if ((element.y + element.offsetHeight) > container.offsetHeight || element.y < 0) { element.dy = -element.dy; element.rotationSpeed = -element.rotationSpeed;} //Отскок.
+
+            element.style.left = element.x + 'px'; element.style.top = element.y + 'px'; element.style.transform = `rotate(${element.rotation}rad)`;});
+        requestAnimationFrame(update);}  //  Запуск анимации
+    update();
+
+</script>
+</body>
+</html>

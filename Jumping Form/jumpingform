@@ -1,0 +1,42 @@
+body {
+    background-color: white;
+    overflow: hidden; /* hides scrollbars */
+}
+
+#container {
+    position: absolute;                /*Positioning*/
+    top: 0;
+    left: 0;
+    width: 100%;                /*Size*/
+    height: 100%;
+}
+
+#container>* {
+    position: absolute;
+}
+
+label {
+    display: inline-block;
+}
+
+.tform {
+    width: 150px;
+    height: 50px;
+    position: absolute;
+}
+
+.radform {
+    width: 25px;
+    height: 25px;
+}
+
+.boxform {
+    width: 25px;
+    height: 25px;
+}
+
+input[type="submit"] {
+width: 150px;
+height: 50px;
+position: absolute;
+}

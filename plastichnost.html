@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Симуляция: Разрушаемая фанера 2025</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #050505; color: white; font-family: sans-serif; }
+        canvas { display: block; }
+        .ui { 
+            position: absolute; top: 20px; left: 20px; pointer-events: none; 
+            background: rgba(0,0,0,0.85); padding: 15px; border-radius: 8px; border: 1px solid #444;
+        }
+        .weapon-info { color: #ffcc00; font-weight: bold; margin-top: 5px; }
+        b { color: #00ffcc; }
+    </style>
+</head>
+<body>
+    <div class="ui">
+        Зажмите мышь: <b>ОГОНЬ</b> | Пробел: <b>СБРОС</b><br>
+        Клавиши 1, 2, 3: <b>Смена оружия</b>
+        <div class="weapon-info" id="weaponName">ОРУЖИЕ: ПИСТОЛЕТ</div>
+    </div>
+    <canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const holeCanvas = document.createElement('canvas');
+const hCtx = holeCanvas.getContext('2d');
+
+let width, height, timeScale = 1.0;
+let bullets = [], particles = [], woodSegments = [];
+let isMouseDown = false, lastShotTime = 0, mousePos = { x: 0, y: 0 };
+let isBroken = false;
+
+const WEAPONS = {
+    1: { name: "ПИСТОЛЕТ", fireRate: 300, speed: 45, spread: 0.01, color: "#ffcc00", damage: 15 },
+    2: { name: "ПУЛЕМЁТ", fireRate: 100, speed: 40, spread: 0.07, color: "#ff6600", damage: 8 },
+    3: { name: "МИНИГАН", fireRate: 30, speed: 38, spread: 0.18, color: "#ff3300", damage: 5 }
+};
+let currentWeapon = WEAPONS[1];
+
+function init() {
+    width = canvas.width = holeCanvas.width = window.innerWidth;
+    height = canvas.height = holeCanvas.height = window.innerHeight;
+    hCtx.clearRect(0, 0, width, height);
+    bullets = []; particles = []; woodSegments = [];
+    isBroken = false;
+
+    // Создаем сегменты фанеры (по 5 пикселей в высоту)
+    const woodX = width * 0.4;
+    const startY = height/2 - 250;
+    for(let i = 0; i < 100; i++) {
+        woodSegments.push({
+            x: woodX,
+            y: startY + i * 5,
+            hp: 100,
+            isFallen: false,
+            vy: 0,
+            angle: 0,
+            va: 0
+        });
+    }
+}
+
+class Particle {
+    constructor(x, y, vx, vy, color) {
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+        this.life = 1.0; this.color = color;
+    }
+    update(ts) {
+        this.x += this.vx * ts; this.y += this.vy * ts;
+        this.vy += 0.25 * ts; this.life -= 0.02 * ts;
+    }
+    draw() {
+        ctx.fillStyle = this.color.replace('1)', this.life + ')');
+        ctx.fillRect(this.x, this.y, 2, 2);
+    }
+}
+
+function shoot() {
+    const now = Date.now();
+    if (now - lastShotTime < currentWeapon.fireRate) return;
+    lastShotTime = now;
+    bullets.push({
+        x: 10, y: mousePos.y,
+        angle: (Math.random() - 0.5) * currentWeapon.spread,
+        speed: currentWeapon.speed,
+        hitIdx: -1
+    });
+}
+
+function update() {
+    ctx.clearRect(0, 0, width, height);
+    if (isMouseDown) shoot();
+    if (timeScale < 1.0) timeScale += 0.01;
+
+    const ironX = width * 0.75, concreteX = width * 0.92;
+
+    // Стены
+    ctx.fillStyle = '#222'; ctx.fillRect(concreteX, 0, width, height);
+    ctx.fillStyle = '#666'; ctx.fillRect(ironX, 0, 8, height);
+    ctx.drawImage(holeCanvas, 0, 0);
+
+    // Отрисовка сегментов фанеры
+    woodSegments.forEach((s, idx) => {
+        if (s.hp > 0) {
+            ctx.save();
+            if (s.isFallen) {
+                s.vy += 0.3 * timeScale;
+                s.y += s.vy * timeScale;
+                s.x += 0.5 * timeScale;
+                s.angle += s.va * timeScale;
+                ctx.translate(s.x + 7, s.y + 2);
+                ctx.rotate(s.angle);
+                ctx.translate(-(s.x + 7), -(s.y + 2));
+            }
+            // Цвет зависит от здоровья (темнеет при повреждении)
+            const brightness = 50 + (s.hp / 100) * 50;
+            ctx.fillStyle = `rgb(${brightness*1.4}, ${brightness}, ${brightness*0.7})`;
+            ctx.fillRect(s.x, s.y, 15, 5);
+            ctx.restore();
+        }
+    });
+
+    // Обработка пуль
+    bullets.forEach((b, bIdx) => {
+        b.x += Math.cos(b.angle) * b.speed * timeScale;
+        b.y += Math.sin(b.angle) * b.speed * timeScale;
+
+        ctx.fillStyle = currentWeapon.color;
+        ctx.fillRect(b.x - 5, b.y - 1, 10, 2);
+
+        // Попадание в фанеру
+        woodSegments.forEach((s, sIdx) => {
+            if (s.hp > 0 && b.x > s.x && b.x < s.x + 15 && b.y > s.y && b.y < s.y + 5) {
+                s.hp -= currentWeapon.damage;
+                timeScale = 0.3;
+                
+                // Эффект щепок
+                for(let i=0; i<3; i++) particles.push(new Particle(b.x, b.y, Math.random()*8, (Math.random()-0.5)*8, 'rgba(210,166,121,1)'));
+                
+                // Рисуем дырку
+                hCtx.fillStyle = 'rgba(40,20,0,0.5)';
+                hCtx.beginPath(); hCtx.arc(b.x, b.y, 2, 0, 7); hCtx.fill();
+
+                // Проверка на разлом
+                if (s.hp <= 0) {
+                    // Все сегменты ВЫШЕ этого начинают падать
+                    for(let j = 0; j < sIdx; j++) {
+                        if (!woodSegments[j].isFallen) {
+                            woodSegments[j].isFallen = true;
+                            woodSegments[j].va = (Math.random() - 0.5) * 0.1;
+                        }
+                    }
+                }
+                b.speed *= 0.8;
+            }
+        });
+
+        // Железо и Бетон (упрощенно для производительности)
+        if (b.x > ironX && b.x < ironX + 8) {
+            b.angle = Math.PI - b.angle + (Math.random()-0.5)*0.2;
+            b.x = ironX - 1; b.speed *= 0.6;
+        }
+        if (b.x > concreteX) {
+            hCtx.fillStyle = '#000';
+            hCtx.beginPath(); hCtx.arc(b.x, b.y, 4, 0, 7); hCtx.fill();
+            bullets.splice(bIdx, 1);
+        }
+    });
+
+    particles = particles.filter(p => p.life > 0);
+    particles.forEach(p => { p.update(timeScale); p.draw(); });
+    bullets = bullets.filter(b => b.x < width + 50 && b.x > -50);
+
+    requestAnimationFrame(update);
+}
+
+window.onmousedown = () => isMouseDown = true;
+window.onmouseup = () => isMouseDown = false;
+window.onmousemove = (e) => mousePos.y = e.clientY;
+window.onkeydown = (e) => {
+    if (WEAPONS[e.key]) {
+        currentWeapon = WEAPONS[e.key];
+        document.getElementById('weaponName').innerText = "ОРУЖИЕ: " + currentWeapon.name;
+    }
+    if (e.code === 'Space') init();
+};
+
+window.onresize = init;
+init();
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+/* Стиль для контейнера, чтобы расположить все блоки в ряд */
+.container {
+	display: flex;
+	justify-content: center; /* Для центрирования по горизонтали */
+	flex-wrap: wrap; /* Позволяет переносить блоки на новую строку при недостатке места */
+	border: 2px solid black; /* Общая граница вокруг всех блоков */
+	padding: 10px; /* Отступ внутри контейнера */
+}
+
+/* Стиль для каждого отдельного блока */
+.item {
+	border: 2px solid black;
+	border-radius: 15px;
+	width: 300px; /* чтобы совпадало с шириной изображений */
+	height: auto; /* высота по содержимому */
+	text-align: center; /* Центрирование текста внутри блока */
+	margin: 10px; /* Отступ между блоками */
+	transition-duration: 0.5s;
+	display: flex;
+	flex-direction: column; /* Расположение элементов по вертикали */
+	align-items: center; /* Центрирование элементов по горизонтали внутри блока */
+}
+
+/* Стиль для изображений */
+.image {
+	width: 300px;
+	height: 300px;
+	object-fit: contain; /* чтобы изображение не искажалось */
+	margin-top: 2.5px;
+	transition-duration: 0.5s;
+}
+.image:hover: ; {
+	width: 325px;
+	height: 325px;
+	object-fit: contain; /* чтобы изображение не искажалось */
+	margin-top: 2.5px;
+	transition-duration: 0.5s;
+
+/* Стиль для текста */
+.text {
+	margin-top: 10px;
+	display: block;
+	font-size: 20px; /* Можно добавить, чтобы было лучше видно */
+}
+
+/* Стиль для цен */
+p{
+	margin-top: 10px;
+	font-weight: bold;
+	font-size: 18px;
+}

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Ultimate Survivor 2025</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Courier New', monospace; color: white; }
+        canvas { display: block; cursor: crosshair; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; pointer-events: none;
+            background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border: 1px solid #444;
+        }
+        .stats { color: #00ff00; font-size: 14px; margin-bottom: 5px; }
+        .wave-info { font-size: 24px; color: #ff3e3e; font-weight: bold; text-transform: uppercase; }
+        .bar-container { width: 250px; height: 10px; background: #333; margin: 5px 0; border: 1px solid #666; }
+        #energyFill { width: 100%; height: 100%; background: #0cf; box-shadow: 0 0 10px #0cf; }
+        #bossHP { width: 250px; height: 15px; background: #400; display: none; border: 1px solid #f00; margin-top: 5px; }
+        #bossFill { width: 100%; height: 100%; background: #f00; }
+        .hint { font-size: 11px; color: #aaa; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div id="waveLabel" class="wave-info">Волна: 1</div>
+    <div class="stats">Врагов: <span id="enemiesLeft">0</span> | Счет: <span id="scoreVal">0</span></div>
+    <div class="stats">Энергия лазера:</div>
+    <div class="bar-container"><div id="energyFill"></div></div>
+    <div id="bossHP"><div id="bossFill"></div></div>
+    <div id="upgrades" class="stats">
+        [T]Выстрел: L1 | [A]Аура: L0 | [L]Лазер: L1 | [M]Магнит: L0
+    </div>
+    <div class="hint">WASD - Бег | ЛКМ - Пули | ПКМ - Лазер</div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const energyFill = document.getElementById('energyFill');
+const upgradesEl = document.getElementById('upgrades');
+const waveLabel = document.getElementById('waveLabel');
+const enemiesLeftEl = document.getElementById('enemiesLeft');
+const scoreEl = document.getElementById('scoreVal');
+const bossBar = document.getElementById('bossHP');
+const bossFill = document.getElementById('bossFill');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let currentWave = 1;
+let enemiesSpawned = 0;
+let enemiesKilled = 0;
+let enemiesToSpawn = 10;
+let lastSpawnTime = 0;
+let isBossActive = false;
+
+const bullets = [], missiles = [], enemies = [], powerups = [], walls = [], keys = {};
+
+const player = {
+    x: canvas.width/2, y: canvas.height/2, radius: 15, speed: 4, angle: 0,
+    energy: 100, isFiringLaser: false,
+    lvlTriple: 1, lvlAura: 0, lvlLaser: 1, lvlMagnet: 0
+};
+
+// Инициализация 25 зеркал (стен)
+function initWalls() {
+    walls.length = 0;
+    // Границы
+    walls.push({x:0, y:0, w:canvas.width, h:10});
+    walls.push({x:0, y:canvas.height-10, w:canvas.width, h:10});
+    walls.push({x:0, y:0, w:10, h:canvas.height});
+    walls.push({x:canvas.width-10, y:0, w:10, h:canvas.height});
+    
+    // Внутренние стены
+    for(let i=0; i<21; i++) {
+        walls.push({
+            x: 150 + Math.random()*(canvas.width-300),
+            y: 150 + Math.random()*(canvas.height-300),
+            w: 40 + Math.random()*60,
+            h: 40 + Math.random()*60
+        });
+    }
+}
+
+function checkWall(x, y, r) {
+    for(let w of walls) {
+        if(x+r > w.x && x-r < w.x+w.w && y+r > w.y && y-r < w.y+w.h) return w;
+    }
+    return null;
+}
+
+window.onkeydown = e => keys[e.code] = true;
+window.onkeyup = e => keys[e.code] = false;
+window.oncontextmenu = e => e.preventDefault();
+window.onmousemove = e => player.angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+window.onmousedown = e => { if(e.button === 0) player.isFiring = true; if(e.button === 2) player.isFiringLaser = true; };
+window.onmouseup = e => { if(e.button === 0) player.isFiring = false; if(e.button === 2) player.isFiringLaser = false; };
+
+function spawnEnemy(forceBoss = false) {
+    const x = Math.random() < 0.5 ? -100 : canvas.width + 100;
+    const y = Math.random() * canvas.height;
+    
+    if (forceBoss) {
+        isBossActive = true;
+        bossBar.style.display = 'block';
+        enemies.push({ x, y, r: 65, hp: 150 + currentWave*25, maxHp: 150 + currentWave*25, speed: 0.8, type: 'boss', lastShot: 0 });
+    } else {
+        const r = Math.random();
+        let type = 'normal';
+        if (r > 0.85) type = 'tank';
+        else if (r > 0.7) type = 'shooter';
+        else if (r > 0.55) type = 'runner';
+        else if (r > 0.45) type = 'splitter';
+
+        const configs = {
+            normal:   { r: 18, hp: 5,  speed: 1.8, color: '#f44' },
+            tank:     { r: 35, hp: 30, speed: 0.7, color: '#90f' },
+            shooter:  { r: 20, hp: 7,  speed: 1.3, color: '#0f0', lastShot: Date.now() },
+            runner:   { r: 14, hp: 2,  speed: 3.8, color: '#ff0' },
+            splitter: { r: 22, hp: 10, speed: 1.5, color: '#f80' },
+            mini:     { r: 10, hp: 1,  speed: 4.5, color: '#f80' }
+        };
+
+        const c = configs[type];
+        enemies.push({ x, y, ...c, maxHp: c.hp, type });
+    }
+}
+
+function update() {
+    const now = Date.now();
+    
+    // Система волн
+    if (enemiesSpawned < enemiesToSpawn && now - lastSpawnTime > 1200 - currentWave*30) {
+        spawnEnemy(); enemiesSpawned++; lastSpawnTime = now;
+    }
+    if (enemiesKilled >= enemiesToSpawn && enemies.length === 0) {
+        currentWave++; enemiesSpawned = 0; enemiesKilled = 0; enemiesToSpawn += 5;
+        waveLabel.innerText = "Волна: " + currentWave;
+        if (currentWave % 5 === 0) spawnEnemy(true);
+    }
+    enemiesLeftEl.innerText = Math.max(0, enemiesToSpawn - enemiesKilled);
+
+    // Игрок
+    let nx = player.x, ny = player.y;
+    if(keys['KeyW']) ny -= player.speed; if(keys['KeyS']) ny += player.speed;
+    if(keys['KeyA']) nx -= player.speed; if(keys['KeyD']) nx += player.speed;
+    if(!checkWall(nx, player.y, player.radius)) player.x = nx;
+    if(!checkWall(player.x, ny, player.radius)) player.y = ny;
+
+    // Энергия
+    if(player.isFiringLaser && player.energy > 0) player.energy -= 2.2;
+    else { player.isFiringLaser = false; player.energy = Math.min(100, player.energy + 0.3 + player.lvlLaser*0.1); }
+    energyFill.style.width = player.energy + "%";
+
+    // Огонь игрока
+    if(player.isFiring && now % 150 < 20) {
+        const count = 1 + (player.lvlTriple - 1) * 2;
+        for(let i=0; i<count; i++) {
+            let a = player.angle + (i - (count-1)/2) * 0.15;
+            bullets.push({x: player.x, y: player.y, vx: Math.cos(a)*12, vy: Math.sin(a)*12});
+        }
+    }
+
+    // Ракеты (20 секунд = 1200 кадров)
+    for (let i = missiles.length - 1; i >= 0; i--) {
+        const m = missiles[i];
+        m.life--;
+        const targetAng = Math.atan2(player.y - m.y, player.x - m.x);
+        let diff = targetAng - m.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        m.angle += diff * 0.05;
+        m.x += Math.cos(m.angle) * 4.2;
+        m.y += Math.sin(m.angle) * 4.2;
+
+        if (checkWall(m.x, m.y, 5) || m.life <= 0) { missiles.splice(i, 1); continue; }
+        if (Math.hypot(player.x - m.x, player.y - m.y) < player.radius) location.reload();
+    }
+
+    // Враги
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const en = enemies[i];
+        const d = Math.hypot(player.x - en.x, player.y - en.y);
+        
+        let vx = (player.x - en.x) / d * en.speed;
+        let vy = (player.y - en.y) / d * en.speed;
+        if(!checkWall(en.x + vx*20, en.y + vy*20, en.r)) { en.x += vx; en.y += vy; }
+
+        if (en.type === 'shooter' && now - en.lastShot > 4500) {
+            missiles.push({ x: en.x, y: en.y, angle: Math.atan2(player.y - en.y, player.x - en.x), life: 1200 });
+            en.lastShot = now;
+        }
+
+        if (player.lvlAura > 0 && d < player.lvlAura * 45) en.hp -= 0.1;
+        if (player.isFiringLaser && Math.abs(player.angle - Math.atan2(en.y-player.y, en.x-player.x)) < 0.1 && d < 600) en.hp -= 1.8;
+        
+        bullets.forEach((b, bi) => {
+            if (Math.hypot(en.x - b.x, en.y - b.y) < en.r) { en.hp--; bullets.splice(bi, 1); }
+        });
+
+        if (en.type === 'boss') bossFill.style.width = (en.hp / en.maxHp * 100) + "%";
+
+        if (en.hp <= 0) {
+            if (en.type === 'boss') { isBossActive = false; bossBar.style.display = 'none'; }
+            if (en.type === 'splitter') for(let k=0; k<3; k++) { spawnEnemy('mini', en.x, en.y); enemiesToSpawn++; }
+            if (Math.random() < 0.4) powerups.push({x: en.x, y: en.y, type: ['triple', 'aura', 'laser', 'magnet'][Math.floor(Math.random()*4)]});
+            enemies.splice(i, 1); enemiesKilled++; score += 100; scoreEl.innerText = score;
+        }
+        if (d < en.r + player.radius) location.reload();
+    }
+
+    bullets.forEach((b, i) => { b.x += b.vx; b.y += b.vy; if(checkWall(b.x, b.y, 4)) bullets.splice(i, 1); });
+    
+    powerups.forEach((p, i) => {
+        const d = Math.hypot(player.x-p.x, player.y-p.y);
+        if(player.lvlMagnet > 0 && d < player.lvlMagnet * 80) { p.x += (player.x-p.x)/d*6; p.y += (player.y-p.y)/d*6; }
+        if(d < player.radius + 15) { 
+            player['lvl' + p.type.charAt(0).toUpperCase() + p.type.slice(1)]++;
+            powerups.splice(i, 1); 
+            upgradesEl.innerText = `[T]L${player.lvlTriple} [A]L${player.lvlAura} [L]L${player.lvlLaser} [M]L${player.lvlMagnet}`;
+        }
+    });
+}
+
+function draw() {
+    ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    walls.forEach(w => { ctx.fillStyle = '#1a1a1a'; ctx.fillRect(w.x, w.y, w.w, w.h); ctx.strokeStyle="#333"; ctx.strokeRect(w.x,w.y,w.w,w.h); });
+
+    if (player.lvlAura > 0) {
+        const r = player.lvlAura * 45;
+        const g = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, r);
+        g.addColorStop(0, 'rgba(255, 0, 255, 0.2)'); g.addColorStop(1, 'rgba(255, 0, 255, 0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(player.x, player.y, r, 0, Math.PI*2); ctx.fill();
+    }
+
+    if (player.isFiringLaser) {
+        ctx.strokeStyle = '#0cf'; ctx.lineWidth = 10; ctx.shadowBlur = 15; ctx.shadowColor = '#0cf';
+        ctx.beginPath(); ctx.moveTo(player.x, player.y);
+        ctx.lineTo(player.x + Math.cos(player.angle)*800, player.y + Math.sin(player.angle)*800);
+        ctx.stroke(); ctx.shadowBlur = 0;
+    }
+
+    enemies.forEach(en => {
+        // Полоска HP
+        ctx.fillStyle = '#222'; ctx.fillRect(en.x - 20, en.y - en.r - 12, 40, 5);
+        ctx.fillStyle = '#f00'; ctx.fillRect(en.x - 20, en.y - en.r - 12, (en.hp/en.maxHp)*40, 5);
+        
+        ctx.fillStyle = en.color; ctx.beginPath(); ctx.arc(en.x, en.y, en.r, 0, Math.PI*2); ctx.fill();
+        if (en.type === 'boss') { ctx.strokeStyle="#fff"; ctx.lineWidth=3; ctx.stroke(); }
+    });
+
+    missiles.forEach(m => {
+        ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.angle);
+        ctx.fillStyle = '#ff0'; ctx.fillRect(-8, -3, 16, 6);
+        ctx.fillStyle = '#f00'; ctx.fillRect(6, -3, 4, 6);
+        ctx.restore();
+        ctx.fillStyle = m.life < 180 ? '#f00' : '#fff';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(Math.ceil(m.life/60) + 's', m.x, m.y - 12);
+    });
+
+    ctx.fillStyle = '#fff'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill(); });
+    powerups.forEach(p => { 
+        ctx.fillStyle = {triple:'#0f0', aura:'#f0f', laser:'#0cf', magnet:'#aaa'}[p.type];
+        ctx.beginPath(); ctx.arc(p.x, p.y, 10, 0, Math.PI*2); ctx.fill(); 
+    });
+
+    ctx.save(); ctx.translate(player.x, player.y); ctx.rotate(player.angle);
+    ctx.fillStyle = '#0f0'; ctx.beginPath(); ctx.arc(0, 0, player.radius, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(10, -4, 15, 8); ctx.restore();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+initWalls(); loop();
+</script>
+</body>
+</html>
