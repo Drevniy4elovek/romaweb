@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Навигация по проектам</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; background: #f4f4f4; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        ul { list-style: none; padding: 0; }
+        li { margin: 10px 0; padding: 8px; border-bottom: 1px solid #eee; }
+        a { text-decoration: none; color: #007bff; font-weight: bold; }
+        a:hover { text-decoration: underline; }
+        .folder::before { content: "📁 "; }
+        .file::before { content: "📄 "; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Список файлов</h1>
+        <ul>
+            <!-- Ссылки на HTML файлы -->
+            <li class="file"><a href="jumpingform.html">Jumping Form (Страница)</a></li>
+            <li class="file"><a href="plastichnost.html">Пластичность</a></li>
+            <li class="file"><a href="shooter.html">Shooter Game</a></li>
+            <li class="file"><a href="simulation.html">Simulation</a></li>
+            
+            <!-- Ссылки на папки (откроются, если там есть свои index.html) -->
+            <li class="folder"><a href="Jumping%20Form/">Папка: Jumping Form</a></li>
+            <li class="folder"><a href="balls/">Папка: balls</a></li>
+            <li class="folder"><a href="button/">Папка: button</a></li>
+            <li class="folder"><a href="him/">Папка: him</a></li>
+        </ul>
+    </div>
+</body>
+</html>

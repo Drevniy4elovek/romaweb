@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Roma form</title>
+  <link rel="stylesheet" href="formcss.css">
+  <script src="jumpingform.js"></script>
+</head>
+<body>
+  <div id="container">
+    <label for="name">Имя</label>
+    <input type="text" id="name" required="required" class="tform">
+
+    <label for="surname">Фамилия</label>
+    <input type="text" id="surname" required="required" class="tform">
+
+    <label for="password">Пароль</label>
+    <input type="password" id="password" required="required" class="tform">
+
+    <label for="male">М</label>
+    <input type="radio" name="rad" id="male" class="radform" required="required">
+
+    <label for="female">Ж</label>
+    <input type="radio" name="rad" id="female" class="radform" required="required">
+
+    <label for="agreement">Нажми сюда</label>
+    <input type="checkbox" error-message="Нажми эту кнопку" id="agreement" class="boxform" required="required">
+
+    <input type="submit" class="subform" value="Зарегистрироваться">
+</div>
+</body>
+</html>

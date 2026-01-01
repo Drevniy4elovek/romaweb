@@ -1,0 +1,43 @@
+.text{
+font-size: 35px;
+}
+.tform{
+width: 500px;
+height: 50px;
+transition: 0.7s;
+border: solid;
+border-radius: 25px;
+font-size: 30px;
+}
+.subform{
+width: 250px;
+height: 50px;
+transition: 0.7s;
+border: solid;
+border-radius: 25px;
+}
+.tform:hover{
+width: 600px;
+height: 50px;
+transition: 0.7s;
+border: dashed;
+box-shadow: 5px 5px gray, -5px -5px lightgray;
+}
+.subform:hover{
+width: 300px;
+height: 50px;
+transition: 0.7s;
+border: dashed;
+box-shadow: 5px 5px gray, -5px -5px lightgray;
+}
+.rect{
+position: absolute;
+left: 32.5%;
+width: 35%;
+top: 2%;
+height: 780px;
+border: solid;
+border-radius: 30px;
+align-items: center;
+z-index: -1;
+}
