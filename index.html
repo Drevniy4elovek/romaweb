@@ -3,35 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Навигация по проектам</title>
+    <title>Панель управления проектами</title>
     <style>
-        body { font-family: sans-serif; line-height: 1.6; padding: 20px; background: #f4f4f4; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h1 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        ul { list-style: none; padding: 0; }
-        li { margin: 10px 0; padding: 8px; border-bottom: 1px solid #eee; }
-        a { text-decoration: none; color: #007bff; font-weight: bold; }
-        a:hover { text-decoration: underline; }
-        .folder::before { content: "📁 "; }
-        .file::before { content: "📄 "; }
+        :root {
+            --bg: #0a0a0c;
+            --btn-bg: #1e1e24;
+            --btn-hover: #2d2d35;
+            --accent: #4f46e5; /* Индиго */
+            --text: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            margin: 0;
+        }
+
+        h1 {
+            margin-bottom: 40px;
+            font-size: 2rem;
+            letter-spacing: -1px;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* СТИЛЬ КНОПКИ */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--btn-bg);
+            color: white;
+            text-decoration: none;
+            padding: 18px 25px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Эффект при наведении */
+        .btn:hover {
+            background-color: var(--btn-hover);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Эффект при нажатии */
+        .btn:active {
+            transform: translateY(0);
+            filter: brightness(0.8);
+        }
+
+        .icon {
+            font-size: 1.2rem;
+            background: rgba(255,255,255,0.1);
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .folder-btn {
+            border-left: 4px solid #f59e0b; /* Оранжевый акцент для папок */
+        }
+
+        .file-btn {
+            border-left: 4px solid var(--accent); /* Синий акцент для файлов */
+        }
+
+        .label {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .type {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
+
+    <h1>МОИ ПРОЕКТЫ 2026</h1>
+
     <div class="container">
-        <h1>Список файлов</h1>
-        <ul>
-            <!-- Ссылки на HTML файлы -->
-            <li class="file"><a href="jumpingform.html">Jumping Form (Страница)</a></li>
-            <li class="file"><a href="plastichnost.html">Пластичность</a></li>
-            <li class="file"><a href="shooter.html">Shooter Game</a></li>
-            <li class="file"><a href="simulation.html">Simulation</a></li>
-            
-            <!-- Ссылки на папки (откроются, если там есть свои index.html) -->
-            <li class="folder"><a href="Jumping%20Form/">Папка: Jumping Form</a></li>
-            <li class="folder"><a href="balls/">Папка: balls</a></li>
-            <li class="folder"><a href="button/">Папка: button</a></li>
-            <li class="folder"><a href="him/">Папка: him</a></li>
-        </ul>
+        <!-- Кнопки для HTML файлов -->
+        <a href="jumpingform.html" class="btn file-btn">
+            <div class="label">
+                <span>Jumping Form</span>
+                <span class="type">Страница проекта</span>
+            </div>
+            <span class="icon">🚀</span>
+        </a>
+
+        <a href="plastichnost.html" class="btn file-btn">
+            <div class="label">
+                <span>Пластичность</span>
+                <span class="type">Визуализация</span>
+            </div>
+            <span class="icon">🧬</span>
+        </a>
+
+        <a href="shooter.html" class="btn file-btn">
+            <div class="label">
+                <span>Shooter Game</span>
+                <span class="type">Игра</span>
+            </div>
+            <span class="icon">🎯</span>
+        </a>
+
+        <a href="simulation.html" class="btn file-btn">
+            <div class="label">
+                <span>Simulation</span>
+                <span class="type">Система</span>
+            </div>
+            <span class="icon">💻</span>
+        </a>
+
+        <!-- Кнопки для папок -->
+        <a href="balls/" class="btn folder-btn">
+            <div class="label">
+                <span>Balls</span>
+                <span class="type">Папка</span>
+            </div>
+            <span class="icon">📂</span>
+        </a>
+
+        <a href="button/" class="btn folder-btn">
+            <div class="label">
+                <span>Button</span>
+                <span class="type">Папка</span>
+            </div>
+            <span class="icon">📂</span>
+        </a>
+
+        <a href="him/" class="btn folder-btn">
+            <div class="label">
+                <span>Him</span>
+                <span class="type">Папка</span>
+            </div>
+            <span class="icon">📂</span>
+        </a>
     </div>
+
 </body>
 </html>
