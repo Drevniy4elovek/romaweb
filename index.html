@@ -1,164 +1,90 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель управления проектами</title>
-    <style>
-        :root {
-            --bg: #0a0a0c;
-            --btn-bg: #1e1e24;
-            --btn-hover: #2d2d35;
-            --accent: #4f46e5; /* Индиго */
-            --text: #ffffff;
-        }
+<style>
+    :root {
+        --bg: #0a0a0c;
+        --btn-bg: #1e1e24;
+        --btn-hover: #2d2d35;
+        --accent: #4f46e5;
+        --folder-accent: #f59e0b;
+        --text: #ffffff;
+    }
 
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 40px 20px;
-            margin: 0;
-        }
+    body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 50px 20px;
+        margin: 0;
+    }
 
-        h1 {
-            margin-bottom: 40px;
-            font-size: 2rem;
-            letter-spacing: -1px;
-        }
+    h1 {
+        margin-bottom: 50px;
+        font-size: 2.5rem; /* Увеличенный заголовок */
+        letter-spacing: -1px;
+    }
 
-        .container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            width: 100%;
-            max-width: 900px;
-        }
+    .container {
+        display: grid;
+        /* Увеличили минимальную ширину кнопки до 350px */
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+        gap: 30px; /* Увеличили расстояние между кнопками */
+        width: 100%;
+        max-width: 1200px;
+    }
 
-        /* СТИЛЬ КНОПКИ */
-        .btn {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background-color: var(--btn-bg);
-            color: white;
-            text-decoration: none;
-            padding: 18px 25px;
-            border-radius: 12px;
-            border: 1px solid #333;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            font-weight: 500;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
+    /* УВЕЛИЧЕННАЯ КНОПКА */
+    .btn {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background-color: var(--btn-bg);
+        color: white;
+        text-decoration: none;
+        padding: 35px 40px; /* Сильно увеличили внутренние отступы */
+        border-radius: 20px; /* Более мягкие углы */
+        border: 1px solid #333;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
 
-        /* Эффект при наведении */
-        .btn:hover {
-            background-color: var(--btn-hover);
-            border-color: var(--accent);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
-        }
+    .btn:hover {
+        background-color: var(--btn-hover);
+        transform: scale(1.03); /* Кнопка слегка увеличивается при наведении */
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
+    }
 
-        /* Эффект при нажатии */
-        .btn:active {
-            transform: translateY(0);
-            filter: brightness(0.8);
-        }
+    .title {
+        font-size: 1.5rem; /* Увеличенный текст названия */
+        font-weight: 700;
+    }
 
-        .icon {
-            font-size: 1.2rem;
-            background: rgba(255,255,255,0.1);
-            padding: 8px;
-            border-radius: 8px;
-        }
+    .type {
+        font-size: 0.9rem; /* Увеличенный текст подписи */
+        color: #aaa;
+        text-transform: uppercase;
+        margin-top: 8px;
+        letter-spacing: 1px;
+    }
 
-        .folder-btn {
-            border-left: 4px solid #f59e0b; /* Оранжевый акцент для папок */
-        }
+    .icon {
+        font-size: 2.5rem; /* Увеличенная иконка */
+        background: rgba(255,255,255,0.05);
+        padding: 15px;
+        border-radius: 15px;
+    }
 
-        .file-btn {
-            border-left: 4px solid var(--accent); /* Синий акцент для файлов */
-        }
+    .folder-btn {
+        border-left: 8px solid var(--folder-accent); /* Толстая полоса для папок */
+    }
 
-        .label {
-            display: flex;
-            flex-direction: column;
-        }
+    .file-btn {
+        border-left: 8px solid var(--accent); /* Толстая полоса для файлов */
+    }
 
-        .type {
-            font-size: 0.7rem;
-            color: #888;
-            text-transform: uppercase;
-            margin-top: 4px;
-        }
-    </style>
-</head>
-<body>
-
-    <h1>МОИ ПРОЕКТЫ</h1>
-
-    <div class="container">
-        <!-- Кнопки для HTML файлов -->
-        <a href="jumpingform.html" class="btn file-btn">
-            <div class="label">
-                <span>Jumping Form</span>
-                <span class="type">Страница проекта</span>
-            </div>
-            <span class="icon">🚀</span>
-        </a>
-
-        <a href="plastichnost.html" class="btn file-btn">
-            <div class="label">
-                <span>Пластичность</span>
-                <span class="type">Визуализация</span>
-            </div>
-            <span class="icon">🧬</span>
-        </a>
-
-        <a href="shooter.html" class="btn file-btn">
-            <div class="label">
-                <span>Shooter Game</span>
-                <span class="type">Игра</span>
-            </div>
-            <span class="icon">🎯</span>
-        </a>
-
-        <a href="simulation.html" class="btn file-btn">
-            <div class="label">
-                <span>Simulation</span>
-                <span class="type">Система</span>
-            </div>
-            <span class="icon">💻</span>
-        </a>
-
-        <!-- Кнопки для папок -->
-        <a href="balls/" class="btn folder-btn">
-            <div class="label">
-                <span>Balls</span>
-                <span class="type">Папка</span>
-            </div>
-            <span class="icon">📂</span>
-        </a>
-
-        <a href="button/" class="btn folder-btn">
-            <div class="label">
-                <span>Button</span>
-                <span class="type">Папка</span>
-            </div>
-            <span class="icon">📂</span>
-        </a>
-
-        <a href="him/" class="btn folder-btn">
-            <div class="label">
-                <span>Him</span>
-                <span class="type">Папка</span>
-            </div>
-            <span class="icon">📂</span>
-        </a>
-    </div>
-
-</body>
-</html>
+    .label {
+        display: flex;
+        flex-direction: column;
+    }
+</style>
