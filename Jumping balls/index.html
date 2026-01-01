@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Вечно прыгающие мячики</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #050505; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<canvas id="simCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const gravity = 0.15;
+    const ballCount = 15; // Оптимально для наглядности столкновений
+
+    class Ball {
+        constructor(x, y, dx, dy, radius, color) {
+            this.x = x;
+            this.y = y;
+            this.dx = dx;
+            this.dy = dy;
+            this.radius = radius;
+            this.color = color;
+            this.mass = radius; // Масса зависит от размера
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        update(balls) {
+            // Проверка столкновений с другими мячами
+            for (let i = 0; i < balls.length; i++) {
+                if (this === balls[i]) continue;
+
+                const distance = Math.hypot(this.x - balls[i].x, this.y - balls[i].y);
+                
+                // Если мячи соприкоснулись
+                if (distance < this.radius + balls[i].radius) {
+                    this.resolveCollision(balls[i]);
+                }
+            }
+
+            // Отскок от стен
+            if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+                this.dx = -this.dx;
+                this.x = this.x < this.radius ? this.radius : canvas.width - this.radius;
+            }
+
+            // Отскок от пола и потолка
+            if (this.y + this.radius + this.dy > canvas.height) {
+                this.dy = -this.dy;
+                this.y = canvas.height - this.radius;
+            } else if (this.y - this.radius < 0) {
+                this.dy = -this.dy;
+                this.y = this.radius;
+            } else {
+                this.dy += gravity;
+            }
+
+            this.x += this.dx;
+            this.y += this.dy;
+            this.draw();
+        }
+
+        // Математика упругого столкновения
+        resolveCollision(other) {
+            const dx = other.x - this.x;
+            const dy = other.y - this.y;
+            const distance = Math.hypot(dx, dy);
+
+            // 1. Предотвращение слипания (расталкиваем мячи)
+            const overlap = this.radius + other.radius - distance;
+            const nx = dx / distance; // Нормаль X
+            const ny = dy / distance; // Нормаль Y
+            this.x -= nx * overlap / 2;
+            this.y -= ny * overlap / 2;
+            other.x += nx * overlap / 2;
+            other.y += ny * overlap / 2;
+
+            // 2. Расчет скоростей после удара (одномерный импульс вдоль нормали)
+            const v1n = this.dx * nx + this.dy * ny;
+            const v2n = other.dx * nx + other.dy * ny;
+
+            // Если мячи уже разлетаются, ничего не делаем
+            if (v1n - v2n < 0) return;
+
+            // Формула упругого удара
+            const m1 = this.mass;
+            const m2 = other.mass;
+            const newV1n = (v1n * (m1 - m2) + 2 * m2 * v2n) / (m1 + m2);
+            const newV2n = (v2n * (m2 - m1) + 2 * m1 * v1n) / (m1 + m2);
+
+            // Обновляем векторы скоростей
+            this.dx += (newV1n - v1n) * nx;
+            this.dy += (newV1n - v1n) * ny;
+            other.dx += (newV2n - v2n) * nx;
+            other.dy += (newV2n - v2n) * ny;
+        }
+    }
+
+    let balls = [];
+
+    function init() {
+        balls = [];
+        for (let i = 0; i < ballCount; i++) {
+            const radius = Math.random() * 15 + 15;
+            const x = Math.random() * (canvas.width - radius * 2) + radius;
+            const y = Math.random() * (canvas.height - radius * 2) + radius;
+            const dx = (Math.random() - 0.5) * 8;
+            const dy = (Math.random() - 0.5) * 8;
+            const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+            balls.push(new Ball(x, y, dx, dy, radius, color));
+        }
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        balls.forEach(ball => ball.update(balls));
+    }
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        init();
+    });
+
+    init();
+    animate();
+</script>
+</body>
+</html>

@@ -1,90 +1,179 @@
-<style>
-    :root {
-        --bg: #0a0a0c;
-        --btn-bg: #1e1e24;
-        --btn-hover: #2d2d35;
-        --accent: #4f46e5;
-        --folder-accent: #f59e0b;
-        --text: #ffffff;
-    }
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления проектами</title>
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --btn-bg: #1e1e24;
+            --btn-hover: #2d2d35;
+            --accent: #4f46e5;
+            --folder-accent: #f59e0b;
+            --text: #ffffff;
+        }
 
-    body {
-        font-family: 'Inter', system-ui, sans-serif;
-        background-color: var(--bg);
-        color: var(--text);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 50px 20px;
-        margin: 0;
-    }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 60px 10px;
+            padding-top: 5px;
+            margin: 0;
+        }
 
-    h1 {
-        margin-bottom: 50px;
-        font-size: 2.5rem; /* Увеличенный заголовок */
-        letter-spacing: -1px;
-    }
+        h1 {
+            margin-bottom: 55px;
+            font-size: 3rem;
+            letter-spacing: -2px;
+            font-weight: 800;
+        }
 
-    .container {
-        display: grid;
-        /* Увеличили минимальную ширину кнопки до 350px */
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
-        gap: 30px; /* Увеличили расстояние между кнопками */
-        width: 100%;
-        max-width: 1200px;
-    }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
 
-    /* УВЕЛИЧЕННАЯ КНОПКА */
-    .btn {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background-color: var(--btn-bg);
-        color: white;
-        text-decoration: none;
-        padding: 35px 40px; /* Сильно увеличили внутренние отступы */
-        border-radius: 20px; /* Более мягкие углы */
-        border: 1px solid #333;
-        transition: all 0.3s ease;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-    }
+        /* БОЛЬШАЯ КНОПКА */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--btn-bg);
+            color: white;
+            text-decoration: none;
+            padding: 20px 20px;
+            border-radius: 24px;
+            border: 1px solid #333;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
 
-    .btn:hover {
-        background-color: var(--btn-hover);
-        transform: scale(1.03); /* Кнопка слегка увеличивается при наведении */
-        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
-    }
+        .btn:hover {
+            background-color: var(--btn-hover);
+            transform: scale(1.05);
+            border-color: #555;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+        }
 
-    .title {
-        font-size: 1.5rem; /* Увеличенный текст названия */
-        font-weight: 700;
-    }
+        .btn:active {
+            transform: scale(0.98);
+        }
 
-    .type {
-        font-size: 0.9rem; /* Увеличенный текст подписи */
-        color: #aaa;
-        text-transform: uppercase;
-        margin-top: 8px;
-        letter-spacing: 1px;
-    }
+        .label {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
 
-    .icon {
-        font-size: 2.5rem; /* Увеличенная иконка */
-        background: rgba(255,255,255,0.05);
-        padding: 15px;
-        border-radius: 15px;
-    }
+        .title {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
 
-    .folder-btn {
-        border-left: 8px solid var(--folder-accent); /* Толстая полоса для папок */
-    }
+        .type {
+            font-size: 0.9rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
 
-    .file-btn {
-        border-left: 8px solid var(--accent); /* Толстая полоса для файлов */
-    }
+        .icon {
+            font-size: 3.5rem;
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 20px;
+        }
 
-    .label {
-        display: flex;
-        flex-direction: column;
-    }
-</style>
+        /* Цветовые акценты */
+        .file-btn { border-left: 12px solid var(--accent); }
+        .folder-btn { border-left: 12px solid var(--folder-accent); }
+
+        @media (max-width: 500px) {
+            .container { grid-template-columns: 1fr; }
+            .btn { padding: 30px; }
+            .title { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>МОИ ПРОЕКТЫ</h1>
+
+    <div class="container">
+        <!-- Файлы -->
+        <a href="jumpingform.html" class="btn file-btn">
+            <div class="label">
+                <span class="title">Jumping Form</span>
+                <span class="type">HTML Документ</span>
+            </div>
+            <span class="icon">🚀</span>
+        </a>
+
+        <a href="plastichnost.html" class="btn file-btn">
+            <div class="label">
+                <span class="title">Пластичность</span>
+                <span class="type">HTML Документ</span>
+            </div>
+            <span class="icon">🧬</span>
+        </a>
+
+        <a href="shooter.html" class="btn file-btn">
+            <div class="label">
+                <span class="title">Shooter Game</span>
+                <span class="type">HTML Документ</span>
+            </div>
+            <span class="icon">🎯</span>
+        </a>
+
+        <a href="simulation.html" class="btn file-btn">
+            <div class="label">
+                <span class="title">Simulation</span>
+                <span class="type">HTML Документ</span>
+            </div>
+            <span class="icon">💻</span>
+        </a>
+
+        <!-- Папки -->
+        <a href="balls/" class="btn folder-btn">
+            <div class="label">
+                <span class="title">Balls</span>
+                <span class="type">Директория</span>
+            </div>
+            <span class="icon">📂</span>
+        </a>
+
+        <a href="button/" class="btn folder-btn">
+            <div class="label">
+                <span class="title">Button</span>
+                <span class="type">Директория</span>
+            </div>
+            <span class="icon">📂</span>
+        </a>
+
+        <a href="him/" class="btn folder-btn">
+            <div class="label">
+                <span class="title">Химические симуляции</span>
+                <span class="type">Симуляция</span>
+            </div>
+            <span class="icon">⏣</span>
+        </a>
+
+        <a href="Jumping%20balls/" class="btn folder-btn">
+            <div class="label">
+                <span class="title">Вечно прыгающие мячики</span>
+                <span class="type">Тест гравитации, отскоков и столкновений</span>
+            </div>
+            <span class="icon">📂</span>
+        </a>
+    </div>
+
+</body>
+</html>
