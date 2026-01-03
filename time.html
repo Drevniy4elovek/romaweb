@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Симулятор Времени 2026: Стабильный интерфейс</title>
+    <style>
+        body { background: #050505; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; color: #00ff00; font-family: 'Courier New', monospace; }
+        
+        #historyPanel {
+            position: absolute; top: 20px; left: 20px; background: rgba(0, 20, 0, 0.9);
+            padding: 15px; border-radius: 8px; border: 1px solid #00ff00; min-width: 240px;
+        }
+
+        .stat-line { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 5px; height: 1.2em; }
+        .stat-val { font-weight: bold; color: #00ff00; }
+        .blur { color: #004400; font-style: italic; } /* Стиль для быстро меняющихся цифр */
+
+        .controls { margin-bottom: 20px; z-index: 10; }
+        canvas { background: #fff; border-radius: 50%; border: 10px solid #222; box-shadow: 0 0 40px rgba(0,255,0,0.2); }
+        select { padding: 10px; background: #000; color: #00ff00; border: 1px solid #00ff00; cursor: pointer; width: 300px; font-weight: bold; }
+        .digital { margin-top: 15px; font-size: 2em; height: 1.2em; }
+    </style>
+</head>
+<body>
+
+<div id="historyPanel">
+    <div class="stat-line"><span>Тысячелетия:</span><span id="mill-val" class="stat-val">0</span></div>
+    <div class="stat-line"><span>Века:</span><span id="cent-val" class="stat-val">0</span></div>
+    <div class="stat-line"><span>Года:</span><span id="year-val" class="stat-val">0</span></div>
+    <div class="stat-line"><span>Месяцы:</span><span id="month-val" class="stat-val">0</span></div>
+    <div class="stat-line"><span>Дни:</span><span id="day-val" class="stat-val">0</span></div>
+</div>
+
+<div class="controls">
+    <select id="speedSelect">
+        <option value="1">Реальное время</option>
+        <option value="3600">1 сек = 1 Час</option>
+        <option value="86400">1 сек = 1 День</option>
+        <option value="604800">1 сек = 1 Неделя</option>
+        <option value="2592000">1 сек = 1 Месяц</option>
+        <option value="31536000">1 сек = 1 Год</option>
+        <option value="3153600000">1 сек = 1 Век</option>
+    </select>
+</div>
+
+<canvas id="clockCanvas" width="380" height="380"></canvas>
+<div class="digital" id="digitalTime">00:00:00</div>
+
+<script>
+    const canvas = document.getElementById('clockCanvas');
+    const ctx = canvas.getContext('2d');
+    const radius = canvas.width / 2;
+    ctx.translate(radius, radius);
+
+    let totalSeconds = 0;
+    let lastRealTime = performance.now();
+
+    function update() {
+        const now = performance.now();
+        const deltaTime = (now - lastRealTime) / 1000;
+        lastRealTime = now;
+
+        const speed = parseFloat(document.getElementById('speedSelect').value);
+        totalSeconds += deltaTime * speed;
+
+        render(totalSeconds, speed);
+        requestAnimationFrame(update);
+    }
+
+    // Вспомогательная функция для плавного обновления текста
+    function updateText(id, value, changeRate) {
+        const el = document.getElementById(id);
+        // Если значение меняется чаще чем 10 раз в секунду, "замораживаем" или блюрим
+        if (changeRate > 10) {
+            el.innerText = "--"; 
+            el.className = "stat-val blur";
+        } else {
+            el.innerText = Math.floor(value);
+            el.className = "stat-val";
+        }
+    }
+
+    function render(total, speed) {
+        const secInDay = 86400;
+        const secInMonth = secInDay * 30;
+        const secInYear = secInDay * 365.25;
+        const secInCent = secInYear * 100;
+        const secInMill = secInCent * 10;
+
+        // 1. Умное обновление текста (проверка скорости изменений)
+        updateText('day-val', (total / secInDay) % 30, speed / secInDay);
+        updateText('month-val', (total / secInMonth) % 12, speed / secInMonth);
+        updateText('year-val', (total / secInYear) % 100, speed / secInYear);
+        updateText('cent-val', (total / secInCent) % 10, speed / secInCent);
+        updateText('mill-val', total / secInMill, speed / secInMill);
+
+        // Цифровые часы ЧЧ:ММ:СС (скрываем если слишком быстро)
+        const h = Math.floor((total % secInDay) / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = Math.floor(total % 60);
+        
+        if (speed > 3600) {
+            document.getElementById('digitalTime').innerText = "SYSTEM SPEEDING...";
+            document.getElementById('digitalTime').style.fontSize = "1em";
+        } else {
+            document.getElementById('digitalTime').innerText = 
+                `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            document.getElementById('digitalTime').style.fontSize = "2em";
+        }
+
+        // 2. Отрисовка циферблата
+        ctx.fillStyle = 'white';
+        ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI*2); ctx.fill();
+        
+        // Стрелки с фильтрацией дребезжания
+        if (speed / 60 < 5) drawHand((total % 60) * Math.PI / 30, radius * 0.85, 2, "#f00"); 
+        if (speed / 3600 < 5) drawHand(((total % 3600) / 60) * Math.PI / 30, radius * 0.75, 4, "#333");
+        if (speed / 43200 < 5) drawHand(((total % 43200) / 3600) * Math.PI / 6, radius * 0.5, 8, "#000");
+
+        // Медленные стрелки для высоких скоростей
+        const daySpd = speed / secInMonth;
+        if (daySpd > 0.0001 && daySpd < 5) drawHand((total / secInMonth) * Math.PI * 2, radius * 0.8, 3, "#00f");
+
+        const yearSpd = speed / secInYear;
+        if (yearSpd > 0.0001 && yearSpd < 5) drawHand((total / secInYear) * Math.PI * 2, radius * 0.7, 4, "#27ae60");
+
+        const centSpd = speed / secInCent;
+        if (centSpd > 0.0001 && centSpd < 5) drawHand((total / secInCent) * Math.PI * 2, radius * 0.5, 6, "#8e44ad");
+
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(0,0,6,0,Math.PI*2); ctx.fill();
+    }
+
+    function drawHand(pos, length, width, color) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.lineWidth = width;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = color;
+        ctx.rotate(pos);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -length);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    update();
+</script>
+</body>
+</html>

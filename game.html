@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Ракетная Оборона 2026: Эволюция Оружия</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000510; font-family: 'Courier New', monospace; }
+        canvas { display: block; cursor: crosshair; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #00ff00; text-shadow: 0 0 5px #00ff00; pointer-events: none; }
+        .stat { font-size: 18px; margin-bottom: 5px; }
+        #upgrade-menu { position: absolute; top: 20px; right: 20px; }
+        .upgrade-btn {
+            background: #0a0a2a; border: 1px solid #0f0; color: #0f0;
+            padding: 8px 12px; margin: 5px 0; cursor: pointer;
+            display: block; width: 340px; text-align: left;
+            pointer-events: auto; font-size: 13px;
+        }
+        .upgrade-btn:hover { background: #0f0; color: #050510; }
+        .upgrade-btn:disabled { border-color: #444; color: #444; cursor: default; }
+        .weapon-active { background: #00ff00 !important; color: #000 !important; font-weight: bold; }
+        .lvl-tag { float: right; color: #00ffff; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div class="stat">ВОЛНА: <span id="wave-num">1</span></div>
+        <div class="stat">ДЕНЬГИ: $<span id="money">5500</span></div>
+        <div class="stat">БАЗА: <span id="hp">100</span>%</div>
+        <div class="stat" id="current-wep-display" style="color:#fff">ОРУЖИЕ: РАКЕТА</div>
+    </div>
+
+    <div id="upgrade-menu">
+        <button class="upgrade-btn" onclick="buyRepair()">🛠 РЕМОНТ БАЗЫ ($1500)</button>
+        
+        <hr style="border-color: #444">
+        
+        <button id="wep-1" class="upgrade-btn weapon-active" onclick="setWeapon(1)">1. РАКЕТЫ <span class="lvl-tag" id="lvl-1">Lvl 1</span></button>
+        <button class="upgrade-btn" onclick="upgradeWeapon(1)">   ⏫ УЛУЧШИТЬ РАДИУС ВЗРЫВА ($2000)</button>
+        
+        <button id="wep-2" class="upgrade-btn" onclick="handleShotgunButton()">2. ДРОБОВИК <span class="lvl-tag" id="lvl-2">Lvl 1</span></button>
+        <button id="upg-2" class="upgrade-btn" onclick="upgradeWeapon(2)" disabled>   ⏫ ДОБАВИТЬ ДРОБИ В ЗАЛП ($3000)</button>
+        
+        <button id="wep-3" class="upgrade-btn" style="color:#0ff" onclick="handleLaserButton()">3. ИОННЫЙ ЛАЗЕР <span class="lvl-tag" id="lvl-3">Lvl 1</span></button>
+        <button id="upg-3" class="upgrade-btn" onclick="upgradeWeapon(3)" disabled>   ⏫ УВЕЛИЧИТЬ ШИРИНУ ЛУЧА ($5000)</button>
+        
+        <hr style="border-color: #0f0">
+        <button id="buy-turret" class="upgrade-btn" onclick="buyTurret()">🤖 АВТО-ТУРЕЛЬ ($3000)</button>
+        <button id="buy-gas" class="upgrade-btn" onclick="buyGas()">☁️ ГАЗОВОЕ ПОЛЕ ($4000)</button>
+    </div>
+
+    <canvas id="game"></canvas>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    
+    let money = 5500;
+    let health = 100;
+    let wave = 0;
+    let rocketSpeed = 22; 
+    let lastShotTime = 0;
+
+    // Состояние Оружия
+    let currentWeapon = 1;
+    let weapons = {
+        1: { lvl: 1, owned: true, radius: 75, rate: 350 },
+        2: { lvl: 1, owned: false, count: 5, spread: 0.4 },
+        3: { lvl: 1, owned: false, width: 45, duration: 800 }
+    };
+
+    let hasTurret = false, turretReload = 1400, lastTurretShot = 0;
+    let hasGas = false, gasRadius = 150;
+
+    let projectiles = [], enemies = [], explosions = [], lasers = [];
+    let enemiesToSpawn = 0, currentWaveSpeedMult = 0.6;
+
+    function upgradeWeapon(id) {
+        if (!weapons[id].owned) return;
+        let costs = [0, 2000, 3000, 5000];
+        if (money >= costs[id]) {
+            money -= costs[id];
+            weapons[id].lvl++;
+            if (id === 1) weapons[id].radius += 35;
+            if (id === 2) weapons[id].count += 2;
+            if (id === 3) weapons[id].width += 50;
+            document.getElementById(`lvl-${id}`).innerText = `Lvl ${weapons[id].lvl}`;
+            updateUI();
+        }
+    }
+
+    function handleShotgunButton() {
+        if (!weapons[2].owned && money >= 6000) {
+            money -= 6000; weapons[2].owned = true;
+            document.getElementById('upg-2').disabled = false;
+            setWeapon(2); updateUI();
+        } else if (weapons[2].owned) setWeapon(2);
+    }
+
+    function handleLaserButton() {
+        if (!weapons[3].owned && money >= 12000) {
+            money -= 12000; weapons[3].owned = true;
+            document.getElementById('upg-3').disabled = false;
+            setWeapon(3); updateUI();
+        } else if (weapons[3].owned) setWeapon(3);
+    }
+
+    function setWeapon(id) {
+        if (!weapons[id].owned) return;
+        currentWeapon = id;
+        for(let i=1; i<=3; i++) document.getElementById(`wep-${i}`).classList.toggle('weapon-active', i === id);
+        let names = ["", "РАКЕТА", "ДРОБОВИК", "ИОННЫЙ ЛАЗЕР"];
+        document.getElementById('current-wep-display').innerText = "ОРУЖИЕ: " + names[id];
+    }
+
+    class LaserBeam {
+        constructor(x) {
+            this.x = x; this.w = weapons[3].width;
+            this.start = Date.now();
+        }
+        update() {
+            let elapsed = Date.now() - this.start;
+            enemies.forEach(e => {
+                if (e.active && e.x > this.x - this.w/2 && e.x < this.x + this.w/2) {
+                    e.active = false; money += 100; updateUI();
+                }
+            });
+            return elapsed < weapons[3].duration;
+        }
+        draw() {
+            ctx.save();
+            let alpha = 1 - (Date.now() - this.start)/weapons[3].duration;
+            ctx.globalAlpha = alpha;
+            let g = ctx.createLinearGradient(this.x - this.w/2, 0, this.x + this.w/2, 0);
+            g.addColorStop(0, 'transparent'); g.addColorStop(0.5, '#0ff'); g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g; ctx.fillRect(this.x - this.w/2, 0, this.w, canvas.height);
+            ctx.fillStyle = "#fff"; ctx.fillRect(this.x - 2, 0, 4, canvas.height);
+            ctx.restore();
+        }
+    }
+
+    class Projectile {
+        constructor(sx, sy, tx, ty, color, angle = null) {
+            this.x = sx; this.y = sy; this.color = color;
+            let a = angle !== null ? angle : Math.atan2(ty - sy, tx - sx);
+            this.vx = Math.cos(a) * rocketSpeed; this.vy = Math.sin(a) * rocketSpeed;
+            this.active = true;
+        }
+        update() {
+            this.x += this.vx; this.y += this.vy;
+            if (this.x < 0 || this.x > canvas.width || this.y < 0) this.active = false;
+            for (let e of enemies) {
+                if (Math.hypot(this.x - e.x, this.y - e.y) < e.radius) {
+                    this.active = false;
+                    explosions.push(new Explosion(this.x, this.y, weapons[1].radius));
+                    break;
+                }
+            }
+        }
+        draw() { ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, 7); ctx.fillStyle = this.color; ctx.fill(); }
+    }
+
+    class Enemy {
+        constructor() {
+            this.radius = 12; this.x = Math.random() * canvas.width; this.y = -20;
+            this.speed = (0.9 + Math.random() * 0.6) * currentWaveSpeedMult;
+            let angle = Math.atan2(canvas.height, (Math.random()*canvas.width) - this.x);
+            this.vx = Math.cos(angle) * this.speed; this.vy = Math.sin(angle) * this.speed;
+            this.active = true;
+        }
+        update() {
+            this.x += this.vx; this.y += this.vy;
+            if (hasGas && Math.hypot(this.x - canvas.width/2, this.y - canvas.height) < gasRadius) {
+                this.radius -= 0.15; if (this.radius < 3) { this.active = false; money += 30; updateUI(); }
+            }
+            if (this.y > canvas.height - 30) { this.active = false; health -= 10; updateUI(); }
+        }
+        draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, 7); ctx.fillStyle = wave<=5?"#666":"#f30"; ctx.fill(); }
+    }
+
+    class Explosion {
+        constructor(x, y, r) { this.x = x; this.y = y; this.r = 1; this.maxR = r; this.active = true; }
+        update() {
+            this.r += 5; if (this.r > this.maxR) this.active = false;
+            enemies.forEach(e => {
+                if (e.active && Math.hypot(this.x - e.x, this.y - e.y) < this.r + e.radius) {
+                    e.active = false; money += 100; updateUI();
+                }
+            });
+        }
+        draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, 7); ctx.fillStyle = `rgba(255,180,0,${1-this.r/this.maxR})`; ctx.fill(); }
+    }
+
+    function updateUI() {
+        document.getElementById('money').innerText = money;
+        document.getElementById('hp').innerText = Math.max(0, health);
+        document.getElementById('wave-num').innerText = wave;
+    }
+
+    function buyRepair() { if (money >= 1500 && health < 100) { money -= 1500; health = Math.min(100, health + 30); updateUI(); } }
+    function buyTurret() { if (!hasTurret && money >= 3000) { money -= 3000; hasTurret = true; updateUI(); document.getElementById('buy-turret').disabled = true; } }
+    function buyGas() { if (!hasGas && money >= 4000) { money -= 4000; hasGas = true; updateUI(); document.getElementById('buy-gas').disabled = true; } }
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (health <= 0) return;
+        if (currentWeapon === 3) { lasers.push(new LaserBeam(e.clientX)); return; }
+        if (Date.now() - lastShotTime < weapons[1].rate) return;
+        lastShotTime = Date.now();
+        let sx = canvas.width/2, sy = canvas.height-40;
+        if (currentWeapon === 1) projectiles.push(new Projectile(sx, sy, e.clientX, e.clientY, '#0ff'));
+        if (currentWeapon === 2) {
+            let ba = Math.atan2(e.clientY - sy, e.clientX - sx);
+            for(let i=0; i<weapons[2].count; i++) {
+                let off = (i/(weapons[2].count-1))*weapons[2].spread - weapons[2].spread/2;
+                projectiles.push(new Projectile(sx, sy, 0, 0, '#ff0', ba+off));
+            }
+        }
+    });
+
+    function startNextWave() {
+        wave++; updateUI();
+        enemiesToSpawn = 5 + wave * 5;
+        currentWaveSpeedMult = wave <= 5 ? 0.4 + (wave * 0.1) : 1.2 + (wave-5) * 0.2;
+    }
+
+    function loop() {
+        ctx.fillStyle = 'rgba(0, 5, 16, 0.3)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        if (hasGas) {
+            ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height, gasRadius, Math.PI, 0);
+            let g = ctx.createRadialGradient(canvas.width/2, canvas.height, 0, canvas.width/2, canvas.height, gasRadius);
+            g.addColorStop(0, 'rgba(0, 255, 150, 0.15)'); g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g; ctx.fill();
+        }
+        ctx.fillStyle = '#0a1a2f'; ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+        if (hasTurret && enemies.filter(e=>e.active).length > 0 && Date.now() - lastTurretShot > turretReload) {
+            let target = enemies.filter(e=>e.active);
+            projectiles.push(new Projectile(canvas.width*0.8, canvas.height-40, target.x, target.y, '#f0f'));
+            lastTurretShot = Date.now();
+        }
+        if (enemiesToSpawn <= 0 && enemies.filter(e=>e.active).length <= 0) startNextWave();
+        if (enemiesToSpawn > 0 && Math.random() < 0.04) { enemies.push(new Enemy()); enemiesToSpawn--; }
+        lasers = lasers.filter(l => l.update()); lasers.forEach(l => l.draw());
+        projectiles = projectiles.filter(p => p.active); projectiles.forEach(p => { p.update(); p.draw(); });
+        enemies = enemies.filter(e => e.active); enemies.forEach(e => { e.update(); e.draw(); });
+        explosions = explosions.filter(ex => ex.active); explosions.forEach(ex => { ex.update(); ex.draw(); });
+        if (health > 0) requestAnimationFrame(loop);
+        else { ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.font = "40px Arial"; ctx.fillText("ГОРОД ПАЛ", canvas.width/2, canvas.height/2); }
+    }
+    startNextWave(); loop();
+</script>
+</body>
+</html>
