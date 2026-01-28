@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Симулятор забивания гвоздей</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a1c; font-family: sans-serif; cursor: none; }
+        #ui { 
+            position: absolute; top: 20px; left: 20px; color: white; 
+            background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; 
+            border: 1px solid #444; z-index: 10;
+        }
+        select { background: #333; color: white; border: 1px solid #555; padding: 5px; width: 100%; margin-top: 5px; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div style="font-size: 12px; color: #aaa;">МАТЕРИАЛ СТЕНЫ:</div>
+    <select id="wallMat">
+        <option value="wood">Сосновая доска (Мягко)</option>
+        <option value="oak">Дубовый брус (Твердо)</option>
+        <option value="brick">Кирпичная кладка (Хрупко)</option>
+        <option value="steel">Стальной лист (Почти нереально)</option>
+    </select>
+    <button onclick="resetNails()" style="margin-top:10px; width:100%; cursor:pointer;">Новые гвозди</button>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const wallSelect = document.getElementById('wallMat');
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let nails = [];
+let particles = [];
+let mx = 0, my = 0, lastMy = 0;
+let hammerVel = 0;
+
+const wallTypes = {
+    wood: { color: '#deb887', density: 1.5, friction: 0.98, spark: '#ffcc66' },
+    oak: { color: '#8b4513', density: 4.0, friction: 0.95, spark: '#f0e68c' },
+    brick: { color: '#b22222', density: 8.0, friction: 0.90, spark: '#ffffff' },
+    steel: { color: '#708090', density: 25.0, friction: 0.80, spark: '#00ffff' }
+};
+
+class Nail {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y; // Начальная позиция шляпки
+        this.length = 60;
+        this.depth = 0; // Насколько забит (в пикселях)
+        this.isDone = false;
+        this.bent = 0; // Изгиб при плохом ударе
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.bent);
+        
+        // Стержень гвоздя (то, что торчит)
+        const visibleLength = this.length - this.depth;
+        if (visibleLength > 0) {
+            ctx.beginPath();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#aaa';
+            ctx.moveTo(0, -visibleLength);
+            ctx.lineTo(0, 0);
+            ctx.stroke();
+
+            // Шляпка
+            ctx.beginPath();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#888';
+            ctx.moveTo(-8, -visibleLength);
+            ctx.lineTo(8, -visibleLength);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+function resetNails() {
+    nails = [];
+    const count = 5;
+    const spacing = canvas.width / (count + 1);
+    for (let i = 1; i <= count; i++) {
+        nails.push(new Nail(spacing * i, canvas.height / 2));
+    }
+}
+
+function drawHammer() {
+    ctx.save();
+    ctx.translate(mx, my);
+    // Наклон молотка
+    let angle = (my - lastMy) * 0.1;
+    ctx.rotate(angle - Math.PI / 2);
+    
+    // Рукоятка
+    ctx.fillStyle = '#5d4037';
+    ctx.fillRect(-4, 0, 8, 70);
+    // Боек
+    ctx.fillStyle = '#444';
+    ctx.fillRect(-15, -15, 40, 30);
+    ctx.restore();
+}
+
+window.addEventListener('mousemove', e => {
+    lastMy = my;
+    mx = e.clientX;
+    my = e.clientY;
+    hammerVel = my - lastMy; // Скорость удара вниз
+
+    const currentWall = wallTypes[wallSelect.value];
+
+    nails.forEach(nail => {
+        // Проверка удара по шляпке
+        const headY = nail.y - (nail.length - nail.depth);
+        if (mx > nail.x - 15 && mx < nail.x + 15 && 
+            my > headY - 10 && my < headY + 20 && hammerVel > 2) {
+            
+            // Физика забивания
+            let progress = hammerVel / currentWall.density;
+            if (nail.depth < nail.length) {
+                nail.depth += progress;
+                if (nail.depth > nail.length) nail.depth = nail.length;
+                
+                // Искры/пыль
+                for(let i=0; i<3; i++) {
+                    particles.push({
+                        x: nail.x, y: headY,
+                        vx: (Math.random()-0.5)*10, vy: -Math.random()*5,
+                        a: 1, c: currentWall.spark
+                    });
+                }
+            }
+        }
+    });
+});
+
+function animate() {
+    const wall = wallTypes[wallSelect.value];
+    ctx.fillStyle = '#1a1a1c';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Отрисовка стены (нижняя часть экрана)
+    ctx.fillStyle = wall.color;
+    ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(0, canvas.height / 2, canvas.width, 10); // Кромка
+
+    nails.forEach(n => n.draw());
+
+    // Частицы
+    particles.forEach((p, i) => {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.3; p.a -= 0.03;
+        ctx.globalAlpha = p.a;
+        ctx.fillStyle = p.c;
+        ctx.fillRect(p.x, p.y, 3, 3);
+        if (p.a <= 0) particles.splice(i, 1);
+    });
+    ctx.globalAlpha = 1;
+
+    drawHammer();
+    requestAnimationFrame(animate);
+}
+
+resetNails();
+animate();
+</script>
+</body>
+</html>

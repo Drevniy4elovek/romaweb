@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Shooter 2026</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
+        canvas { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
+            border: 2px solid rgba(255,255,255,0.5); transform: translate(-50%, -50%); border-radius: 50%;
+        }
+        #ui { position: absolute; top: 10px; left: 10px; color: lime; background: rgba(0,0,0,0.8); padding: 10px; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="ui">СЧЕТ: <span id="score">0</span> | КЛИК - ОГОНЬ</div>
+    <div id="crosshair"></div>
+    <canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const map = [
+    [1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,1,0,0,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,0,0,0,0,0,1,1,0,1],
+    [1,0,1,1,0,0,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1]
+];
+
+const p = { x: 1.5, y: 1.5, dir: 0, speed: 0.06, weaponFrame: 0, score: 0 };
+const enemies = [
+    { x: 5.5, y: 3.5, alive: true },
+    { x: 8.5, y: 1.5, alive: true },
+    { x: 2.5, y: 6.5, alive: true }
+];
+
+const keys = {};
+canvas.addEventListener('click', () => {
+    if (document.pointerLockElement !== canvas) {
+        canvas.requestPointerLock();
+    } else {
+        shoot();
+    }
+});
+
+document.addEventListener('mousemove', e => {
+    if (document.pointerLockElement === canvas) p.dir += e.movementX * 0.002;
+});
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+function shoot() {
+    if (p.weaponFrame > 0) return;
+    p.weaponFrame = 5; // Длительность анимации отдачи
+
+    // Проверка попадания (луч по центру)
+    enemies.forEach(en => {
+        if (!en.alive) return;
+        let dx = en.x - p.x;
+        let dy = en.y - p.y;
+        let angleToEn = Math.atan2(dy, dx);
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        
+        let angleDiff = angleToEn - p.dir;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+        if (Math.abs(angleDiff) < 0.2 && dist < 10) {
+            en.alive = false;
+            p.score += 100;
+            document.getElementById('score').innerText = p.score;
+        }
+    });
+}
+
+function update() {
+    let mx = 0, my = 0;
+    if (keys['KeyW']) { mx += Math.cos(p.dir) * p.speed; my += Math.sin(p.dir) * p.speed; }
+    if (keys['KeyS']) { mx -= Math.cos(p.dir) * p.speed; my -= Math.sin(p.dir) * p.speed; }
+    if (keys['KeyA']) { mx += Math.cos(p.dir - Math.PI/2) * p.speed; my += Math.sin(p.dir - Math.PI/2) * p.speed; }
+    if (keys['KeyD']) { mx += Math.cos(p.dir + Math.PI/2) * p.speed; my += Math.sin(p.dir + Math.PI/2) * p.speed; }
+    
+    if (map[Math.floor(p.y)][Math.floor(p.x + mx * 2)] === 0) p.x += mx;
+    if (map[Math.floor(p.y + my * 2)][Math.floor(p.x)] === 0) p.y += my;
+    if (p.weaponFrame > 0) p.weaponFrame--;
+}
+
+function draw() {
+    const w = canvas.width = 400; 
+    const h = canvas.height = 250;
+    const zBuffer = new Array(w).fill(0); // Нужно, чтобы враги не просвечивали сквозь стены
+
+    // Фон (пол и потолок)
+    ctx.fillStyle = '#222'; ctx.fillRect(0, 0, w, h/2);
+    ctx.fillStyle = '#444'; ctx.fillRect(0, h/2, w, h/2);
+
+    const fov = Math.PI / 3;
+    for (let x = 0; x < w; x++) {
+        let rayAngle = (p.dir - fov/2) + (x/w) * fov;
+        let rx = Math.cos(rayAngle), ry = Math.sin(rayAngle);
+        let dist = 0, hit = false;
+
+        while (!hit && dist < 15) {
+            dist += 0.05;
+            if (map[Math.floor(p.y + ry*dist)][Math.floor(p.x + rx*dist)] === 1) hit = true;
+        }
+
+        let realDist = dist * Math.cos(p.dir - rayAngle);
+        zBuffer[x] = realDist;
+        let wallH = h / realDist;
+        let c = (Math.floor(p.x+rx*dist*2) + Math.floor(p.y+ry*dist*2)) % 2 === 0 ? 150 : 80;
+        let fog = Math.max(0, 1 - realDist/10);
+        ctx.fillStyle = `rgb(${c*fog}, ${c*fog}, ${c*fog})`;
+        ctx.fillRect(x, (h-wallH)/2, 1, wallH);
+    }
+
+    // Враги (Спрайты)
+    enemies.forEach(en => {
+        if (!en.alive) return;
+        let dx = en.x - p.x, dy = en.y - p.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        let angle = Math.atan2(dy, dx) - p.dir;
+        while(angle < -Math.PI) angle += Math.PI*2;
+        while(angle > Math.PI) angle -= Math.PI*2;
+
+        if (Math.abs(angle) < fov) {
+            let spriteSize = h / dist;
+            let screenX = (0.5 * (angle / (fov/2)) + 0.5) * w;
+            
+            // Проверка z-buffer (не за стеной ли враг)
+            if (zBuffer[Math.floor(screenX)] > dist) {
+                ctx.fillStyle = 'lime';
+                ctx.fillRect(screenX - spriteSize/4, h/2 - spriteSize/4, spriteSize/2, spriteSize/2);
+            }
+        }
+    });
+
+    // Оружие
+    ctx.fillStyle = '#333';
+    let recoil = p.weaponFrame * 5;
+    ctx.fillRect(w/2 - 20, h - 80 + recoil, 40, 80); // Ствол
+    if (p.weaponFrame > 3) { // Вспышка
+        ctx.fillStyle = 'yellow';
+        ctx.beginPath(); ctx.arc(w/2, h-80+recoil, 15, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Cyber Stealth Hacker</title>
+    <style>
+        :root { --neon: #00ff41; --danger: #ff3333; --bg: #050505; }
+        body { background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        
+        #stats-bar { width: 850px; display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid #222; padding-bottom: 5px; }
+        
+        #desktop { width: 850px; height: 500px; border: 1px solid var(--neon); background: #000; position: relative; display: flex; }
+        
+        /* Проводник слева */
+        #explorer-win { width: 60%; display: flex; flex-direction: column; border-right: 1px solid #222; }
+        #file-list { flex-grow: 1; padding: 10px; overflow-y: auto; }
+        
+        /* Магазин справа */
+        #shop { width: 40%; background: #0a0a0a; padding: 15px; }
+        .shop-item { border: 1px solid #333; padding: 10px; margin-bottom: 10px; font-size: 12px; }
+        .shop-item button { background: var(--neon); color: #000; border: none; padding: 5px 10px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
+        .shop-item button:disabled { background: #222; color: #555; }
+
+        .file-item { display: flex; align-items: center; padding: 8px; cursor: pointer; border-bottom: 1px solid #111; font-size: 14px; }
+        .file-item:hover { background: rgba(0,255,65,0.1); }
+        .icon { margin-right: 12px; }
+        
+        /* Подсветка сканера */
+        .danger-detected { color: var(--danger) !important; text-shadow: 0 0 5px var(--danger); }
+
+        .window { position: absolute; top: 50px; left: 50px; background: #000; border: 2px solid var(--neon); z-index: 100; display: none; width: 300px; }
+        .win-header { background: var(--neon); color: #000; padding: 5px; font-size: 12px; display: flex; justify-content: space-between; }
+        #system-log { width: 850px; height: 80px; border: 1px solid #222; margin-top: 10px; padding: 10px; font-size: 12px; overflow-y: auto; color: #008f11; }
+        
+        .game-over { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--danger); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; display: none; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="stats-bar">
+    <span>УРОВЕНЬ: <b id="lvl-txt">1</b></span>
+    <span>КРЕДИТЫ: <b id="cash-txt">0</b>$</span>
+    <span>EXP: <b id="exp-txt">0</b></span>
+</div>
+
+<div id="desktop">
+    <div id="explorer-win">
+        <div style="padding: 10px; background: #111; font-size: 12px;">Путь: C:/System/Files/</div>
+        <div id="file-list"></div>
+    </div>
+
+    <div id="shop">
+        <h3 style="margin: 0 0 15px 0; font-size: 16px;">BLACK_MARKET</h3>
+        <div class="shop-item">
+            <b>DEEP_SCAN v1.0</b><br>
+            Подсвечивает ловушки системы защиты.<br>
+            <button id="buy-scanner" onclick="buyScanner()">КУПИТЬ (300$)</button>
+        </div>
+        <div style="font-size: 10px; color: #555;">Начиная с 5-го уровня, открытие файлов-приманок (HoneyPot) приводит к немедленному обнаружению.</div>
+    </div>
+
+    <!-- Терминал -->
+    <div id="terminal" class="window">
+        <div class="win-header"><span>AUTH_GATE</span><span style="cursor:pointer" onclick="closeWin('terminal')">[X]</span></div>
+        <div style="padding: 20px; text-align: center;">
+            <div id="display" style="font-size: 2em; margin-bottom: 10px;">____</div>
+            <div id="numpad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px;"></div>
+        </div>
+    </div>
+
+    <!-- Экран проигрыша -->
+    <div id="game-over" class="game-over">
+        <h1>СИСТЕМА ОБНАРУЖЕНА</h1>
+        <p>Ваш IP был отслежен. Все данные стерты.</p>
+        <button onclick="location.reload()" style="padding: 10px 20px; cursor:pointer">ПЕРЕЗАГРУЗКА</button>
+    </div>
+</div>
+
+<div id="system-log">> Связь установлена...</div>
+
+<script>
+    let state = { lvl: 1, cash: 0, exp: 0, hasScanner: false };
+    let currentInput = "";
+    let secretCode = "";
+
+    function writeLog(msg) {
+        const log = document.getElementById('system-log');
+        log.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>` + log.innerHTML;
+    }
+
+    function initLevel() {
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+        currentInput = "";
+        secretCode = Math.floor(1000 + Math.random() * 9000).toString();
+        
+        // Генерируем файлы
+        const fileNames = ['config.bin', 'user_data.db', 'logs.txt', 'security.key', 'backup.zip', 'passwords.txt'];
+        
+        fileNames.forEach(name => {
+            const isTrap = state.lvl >= 5 && Math.random() > 0.6;
+            const isKey = !isTrap && Math.random() > 0.7; // Один из файлов содержит код
+
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            if (isTrap && state.hasScanner) div.classList.add('danger-detected');
+            
+            div.innerHTML = `<span class="icon">${isTrap ? '📡' : '📄'}</span> <span class="file-name">${name}</span>`;
+            
+            div.onclick = () => {
+                if (isTrap) {
+                    document.getElementById('game-over').style.display = 'flex';
+                } else {
+                    writeLog(`Чтение ${name}...`);
+                    if (name === 'passwords.txt' || isKey) {
+                        writeLog(`ВНИМАНИЕ: Найден код доступа: ${secretCode}`);
+                        openTerminal();
+                    } else {
+                        writeLog("Файл пуст или зашифрован.");
+                    }
+                }
+            };
+            list.appendChild(div);
+        });
+
+        // Кнопка входа в БД (Замок)
+        const db = document.createElement('div');
+        db.className = 'file-item';
+        db.innerHTML = `<span class="icon">🔒</span> <b>DATABASE_CORE</b>`;
+        db.onclick = openTerminal;
+        list.appendChild(db);
+
+        updateUI();
+    }
+
+    function openTerminal() {
+        document.getElementById('terminal').style.display = 'block';
+        const pad = document.getElementById('numpad');
+        if (!pad.innerHTML) {
+            "123456789C0↵".split('').forEach(char => {
+                const b = document.createElement('button');
+                b.innerText = char;
+                b.style.cssText = "background:transparent; border:1px solid var(--neon); color:var(--neon); padding:10px; cursor:pointer;";
+                b.onclick = () => {
+                    if(char === 'C') currentInput = "";
+                    else if(char === '↵') checkCode();
+                    else if(currentInput.length < 4) currentInput += char;
+                    document.getElementById('display').innerText = currentInput.padEnd(4, '_');
+                };
+                pad.appendChild(b);
+            });
+        }
+    }
+
+    function checkCode() {
+        if (currentInput === secretCode) {
+            state.exp += 100;
+            state.cash += 150;
+            state.lvl += 1;
+            writeLog(`ВЗЛОМ ЗАВЕРШЕН. Получено 150$. Переход на уровень ${state.lvl}`, "success");
+            closeWin('terminal');
+            initLevel();
+        } else {
+            writeLog("ОШИБКА: Код не принят.");
+            currentInput = "";
+        }
+        updateUI();
+    }
+
+    function buyScanner() {
+        if (state.cash >= 300) {
+            state.cash -= 300;
+            state.hasScanner = true;
+            document.getElementById('buy-scanner').disabled = true;
+            document.getElementById('buy-scanner').innerText = "УСТАНОВЛЕНО";
+            writeLog("Утилита DEEP_SCAN установлена. Теперь опасные файлы подсвечиваются.");
+            initLevel();
+        } else {
+            writeLog("Недостаточно средств на счету.");
+        }
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('lvl-txt').innerText = state.lvl;
+        document.getElementById('cash-txt').innerText = state.cash;
+        document.getElementById('exp-txt').innerText = state.exp;
+    }
+
+    function closeWin(id) { document.getElementById(id).style.display = 'none'; }
+
+    initLevel();
+</script>
+</body>
+</html>

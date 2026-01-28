@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Minecraft 3D (Break Blocks) 2026</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: sans-serif; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 10px; border-radius: 5px; pointer-events: none; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; border: 2px solid white; transform: translate(-50%, -50%); pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="ui"><b>2026 Minecraft JS</b><br>Клик — Захват мыши / Ломать блок<br>WASD — Ходить</div>
+    <div id="crosshair"></div>
+    <canvas id="game"></canvas>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let w, h;
+    const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+    window.onresize = resize;
+    resize();
+
+    let p = { x: 0, y: -1.7, z: -5, yaw: 0, pitch: 0 };
+    const keys = {};
+    let blocks = [];
+
+    // Генерация мира
+    for(let x = -8; x <= 8; x++) {
+        for(let z = -8; z <= 8; z++) {
+            blocks.push({ x, y: 0, z, cTop: '#55aa44', cSide: '#8b4513', id: Math.random() });
+            if (Math.random() > 0.95 && (Math.abs(x) > 1 || Math.abs(z) > 1)) {
+                blocks.push({ x, y: -1, z, cTop: '#d2b48c', cSide: '#6f4e37', id: Math.random() });
+                blocks.push({ x, y: -2, z, cTop: '#d2b48c', cSide: '#6f4e37', id: Math.random() });
+            }
+        }
+    }
+
+    // Захват мыши и ЛОМАНИЕ БЛОКОВ
+    canvas.onclick = () => {
+        if (document.pointerLockElement !== canvas) {
+            canvas.requestPointerLock();
+        } else {
+            breakBlock();
+        }
+    };
+
+    function breakBlock() {
+        let bestDist = 4; // Максимальная дистанция ломания
+        let targetIdx = -1;
+
+        blocks.forEach((b, idx) => {
+            let pr = project(b.x, b.y, b.z);
+            if (pr && pr.d < bestDist) {
+                // Проверяем, находится ли блок в центре экрана (под прицелом)
+                let s = pr.s / 2;
+                if (w/2 > pr.x - s && w/2 < pr.x + s && h/2 > pr.y - s && h/2 < pr.y + s) {
+                    bestDist = pr.d;
+                    targetIdx = idx;
+                }
+            }
+        });
+
+        if (targetIdx !== -1) {
+            blocks.splice(targetIdx, 1); // Удаляем блок
+        }
+    }
+
+    document.addEventListener('mousemove', e => {
+        if (document.pointerLockElement === canvas) {
+            p.yaw += e.movementX * 0.003;
+            p.pitch += e.movementY * 0.003;
+            p.pitch = Math.max(-1.4, Math.min(1.4, p.pitch));
+        }
+    });
+
+    window.onkeydown = e => keys[e.code] = true;
+    window.onkeyup = e => keys[e.code] = false;
+
+    function project(bx, by, bz) {
+        let dx = bx - p.x, dy = by - p.y, dz = bz - p.z;
+        let cosY = Math.cos(-p.yaw), sinY = Math.sin(-p.yaw);
+        let rx = dx * cosY - dz * sinY;
+        let rz = dx * sinY + dz * cosY;
+        let cosX = Math.cos(-p.pitch), sinX = Math.sin(-p.pitch);
+        let ry = dy * cosX - rz * sinX;
+        let fz = dy * sinX + rz * cosX;
+        if (fz < 0.1) return null;
+        let scale = 800 / fz;
+        return { x: w/2 + rx * scale, y: h/2 + ry * scale, s: scale, d: fz };
+    }
+
+    function loop() {
+        let speed = 0.07;
+        if(keys['KeyW']) { p.x += Math.sin(p.yaw) * speed; p.z += Math.cos(p.yaw) * speed; }
+        if(keys['KeyS']) { p.x -= Math.sin(p.yaw) * speed; p.z -= Math.cos(p.yaw) * speed; }
+        if(keys['KeyA']) { p.x -= Math.cos(p.yaw) * speed; p.z += Math.sin(p.yaw) * speed; }
+        if(keys['KeyD']) { p.x += Math.cos(p.yaw) * speed; p.z -= Math.sin(p.yaw) * speed; }
+
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(0, 0, w, h);
+
+        const rendered = blocks
+            .map(b => ({ ...b, pr: project(b.x, b.y, b.z) }))
+            .filter(b => b.pr !== null && b.pr.d < 15)
+            .sort((a, b) => b.pr.d - a.pr.d);
+
+        rendered.forEach(b => {
+            let { x, y, s } = b.pr;
+            let half = s / 2;
+            ctx.fillStyle = b.cSide;
+            ctx.fillRect(x - half, y - half, s, s);
+
+            if (p.y < b.y - 0.4) {
+                ctx.fillStyle = b.cTop;
+                ctx.beginPath();
+                ctx.moveTo(x - half, y - half);
+                ctx.lineTo(x + half, y - half);
+                ctx.lineTo(x + half * 0.8, y - half * 1.2);
+                ctx.lineTo(x - half * 0.8, y - half * 1.2);
+                ctx.fill();
+            }
+            ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+            ctx.strokeRect(x - half, y - half, s, s);
+        });
+
+        requestAnimationFrame(loop);
+    }
+    loop();
+</script>
+</body>
+</html>
