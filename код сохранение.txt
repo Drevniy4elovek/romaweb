@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <title>Химический Конструктор 2026</title>
     <style>
-    body
-    
-    { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; overflow: hidden; }
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; overflow: hidden; }
     #ui-panel, #halogen-menu {
         position: absolute; background: white; padding: 20px; border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 10; width: 300px;

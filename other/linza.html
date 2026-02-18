@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Физически точная оптика</title>
+    <style>
+        body { font-family: sans-serif; background: #0a0a0a; color: #eee; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        canvas { background: #000; border: 1px solid #333; border-radius: 12px; }
+        .ui { margin-top: 20px; background: #1a1a1a; padding: 20px; border-radius: 12px; width: 800px; border: 1px solid #333; }
+        .btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-bottom: 20px; }
+        button { padding: 12px; cursor: pointer; background: #252525; color: #ccc; border: 1px solid #444; border-radius: 6px; transition: 0.2s; }
+        button.active { background: #005f73; color: #00d4ff; border-color: #00d4ff; font-weight: bold; }
+        .slider-container { display: flex; align-items: center; gap: 15px; border-top: 1px solid #333; padding-top: 20px; }
+        input { flex-grow: 1; accent-color: #00d4ff; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>Исправленный ход лучей</h2>
+    <canvas id="optics" width="800" height="400"></canvas>
+
+    <div class="ui">
+        <div class="btns">
+            <button onclick="setType('biconvex')" id="biconvex" class="active">Двояковыпуклая</button>
+            <button onclick="setType('planoconvex')" id="planoconvex">Плоско-выпуклая</button>
+            <button onclick="setType('posMeniscus')" id="posMeniscus">Мениск (+)</button>
+            <button onclick="setType('biconcave')" id="biconcave">Двояковогнутая</button>
+            <button onclick="setType('planoconcave')" id="planoconcave">Плоско-вогнутая</button>
+            <button onclick="setType('negMeniscus')" id="negMeniscus">Мениск (-)</button>
+        </div>
+        <div class="slider-container">
+            <span>Кривизна:</span>
+            <input type="range" id="curv" min="10" max="100" value="45" oninput="draw()">
+            <span id="curvVal" style="color:#00d4ff">45</span>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('optics');
+    const ctx = canvas.getContext('2d');
+    let currentType = 'biconvex';
+
+    function setType(t) {
+        currentType = t;
+        document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        document.getElementById(t).classList.add('active');
+        draw();
+    }
+
+    function draw() {
+        const curv = parseInt(document.getElementById('curv').value);
+        document.getElementById('curvVal').innerText = curv;
+        ctx.clearRect(0, 0, 800, 400);
+
+        const cx = 400, cy = 200, h = 100;
+        let isPos = ['biconvex', 'planoconvex', 'posMeniscus'].includes(currentType);
+
+        // 1. Отрисовка линзы с защитой от "касания линий"
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(0, 200, 255, 0.15)";
+        ctx.strokeStyle = "rgba(0, 255, 255, 0.6)";
+        ctx.lineWidth = 2;
+        ctx.save(); ctx.translate(cx, cy);
+
+        let leftCurve = 0, rightCurve = 0, xShift = 10;
+        
+        switch(currentType) {
+            case 'biconvex': leftCurve = -curv/2; rightCurve = curv/2; xShift = 0; break;
+            case 'planoconvex': leftCurve = 0; rightCurve = curv/1.5; xShift = -10; break;
+            case 'posMeniscus': leftCurve = curv/3; rightCurve = curv/1.5 + 10; xShift = -20; break;
+            case 'biconcave': leftCurve = curv/3; rightCurve = -curv/3; xShift = 0; break;
+            case 'planoconcave': leftCurve = 0; rightCurve = -curv/2; xShift = 10; break;
+            case 'negMeniscus': leftCurve = -curv/4; rightCurve = -curv/1.5; xShift = 20; break;
+        }
+
+        ctx.moveTo(xShift, -h);
+        ctx.quadraticCurveTo(xShift + rightCurve, 0, xShift, h);
+        ctx.lineTo(xShift - 15, h);
+        ctx.quadraticCurveTo(xShift - 15 + leftCurve, 0, xShift - 15, -h);
+        ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+
+        // 2. Расчет фокуса
+        let f = isPos ? (4000/(curv*0.6+5)) : -(4000/(curv*0.6+5));
+
+        // 3. Лучи с преломлением на КРАЮ линзы
+        [-75, -45, -15, 15, 45, 75].forEach(yOff => {
+            let y = cy + yOff;
+            // Рассчитываем реальный X края линзы для этой высоты y
+            let factor = (1 - Math.pow(yOff/h, 2));
+            let xEdge = cx + xShift + (rightCurve * factor);
+
+            // Луч ДО края
+            ctx.strokeStyle = "rgba(255, 50, 50, 0.8)";
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(xEdge, y); ctx.stroke();
+
+            // Луч ПОСЛЕ края (преломление точно от поверхности)
+            ctx.strokeStyle = "rgba(255, 80, 80, 0.5)";
+            ctx.beginPath(); ctx.moveTo(xEdge, y);
+            
+            let targetY;
+            if (isPos) {
+                let slope = (cy - y) / (f + (cx - xEdge));
+                targetY = y + (800 - xEdge) * slope;
+            } else {
+                let slope = (y - cy) / Math.abs(f);
+                targetY = y + (800 - xEdge) * slope;
+                // Мнимый пунктир
+                ctx.save(); ctx.setLineDash([5, 5]); ctx.strokeStyle="rgba(255,255,255,0.2)";
+                ctx.beginPath(); ctx.moveTo(xEdge, y); ctx.lineTo(cx + f, cy); ctx.stroke(); ctx.restore();
+            }
+            ctx.lineTo(800, targetY); ctx.stroke();
+        });
+
+        // 4. Точка F
+        ctx.fillStyle = isPos ? "#0fcc" : "#fa0";
+        ctx.beginPath(); ctx.arc(cx + f, cy, 4, 0, 7); ctx.fill();
+        ctx.fillText(isPos ? "F" : "F'", cx + f - 5, cy + 20);
+    }
+    draw();
+</script>
+</body>
+</html>
