@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Химический Конструктор 2026</title>
+    <style>
+    body
+    
+    { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; overflow: hidden; }
+    #ui-panel, #halogen-menu {
+        position: absolute; background: white; padding: 20px; border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 10; width: 300px;
+    }
+    #ui-panel { top: 20px; left: 20px; }
+    select, button { 
+        padding: 10px; width: 100%; border-radius: 6px; 
+        border: 1px solid #ccc; margin-bottom: 10px; 
+        font-size: 16px; cursor: pointer; background: white;
+        box-sizing: border-box; display: block;
+    }
+    button { background-color: #3498db; color: white; border: none; font-weight: bold; transition: background 0.2s; }
+    button:hover { background-color: #2980b9; }
+
+    #infoBtn { 
+        background-color: #2ecc71; 
+        margin-top: 10px; 
+    }
+    #infoBtn:hover { 
+        background-color: #27ae60; 
+    }
+
+    #modalOverlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-content {
+        background: white; padding: 30px; border-radius: 15px; width: 85%; 
+        max-width: 550px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    #closeModal { position: absolute; top: 10px; right: 20px; cursor: pointer; font-size: 28px; color: #999; }
+    #wikiTitle { color: #2c3e50; border-bottom: 2px solid #2ecc71; padding-bottom: 10px; margin-top: 0; }
+    #wikiText { line-height: 1.6; color: #333; max-height: 60vh; overflow-y: auto; text-align: left; }
+
+    .formula-box { font-family: monospace; font-size: 1.5em; font-weight: bold; color: #2c3e50; }
+    
+    /* ИСПРАВЛЕННЫЙ БЛОК ОШИБКИ */
+    .error-msg { 
+        color: #d35400; 
+        font-size: 13px; 
+        font-weight: bold; 
+        min-height: 1.5em; /* Резервирует место под одну строку */
+        height: auto;      /* Позволяет блоку растягиваться вниз при переносе текста */
+        display: block; 
+        margin-bottom: 5px; /* Зазор до кнопки */
+    }
+
+    #nameDisplay { font-weight: 600; color: #1a1a1a; margin-bottom: 5px; }
+    #trivialDisplay { font-size: 14px; color: #3498db; min-height: 1.2em; font-style: italic; }
+    #halogen-menu { display: none; z-index: 100; }
+    .menu-label { font-size: 14px; color: #666; margin-bottom: 8px; font-weight: 600; }
+</style>
+
+
+
+    <script src="./xlsx.full.min.js"></script>
+
+    
+</head>
+<body>
+
+<div id="ui-panel">
+    <div class="menu-label">Углеводород:</div>
+    <select id="alkaneSelect">
+        <option value="1">Метан</option>
+        <option value="2" selected>Этан</option>
+        <option value="3">Пропан</option>
+        <option value="4">Бутан</option>
+        <option value="5">Пентан</option>
+        <option value="6">Гексан</option>
+        <option value="benzene">Бензол</option>
+    </select>
+    <button id="resetBtn">Сбросить всё</button>
+    <div class="info">
+        <div id="nameDisplay">Этан</div>
+        <div id="trivialDisplay"></div>
+        <div id="formulaDisplay" class="formula-box">C₂H₆</div>
+        <div id="errorDisplay" class="error-msg"></div>
+
+        <button id="infoBtn">ℹ️ Свойства вещества</button>
+
+    </div>
+</div>
+
+<div id="ring-menu" style="display:none; position:absolute; background:white; padding:15px; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.2); z-index:200;">
+    <div class="menu-label">Достроить кольцо?</div>
+    <button id="confirmRingBtn">Присоединить кольцо</button>
+    <button id="cancelRingBtn" style="background:#95a5a6;">Отмена</button>
+</div>
+
+
+<div id="halogen-menu">
+    <div class="menu-label">Выберите заместитель:</div>
+    <select id="haloInternalSelect">
+    <option value="H">Водород (H)</option>
+    <option value="CH3">Метил (CH₃)</option>
+    <option value="C2H5">Этил (C₂H₅)</option>
+    <option value="C3H7">Пропил (C₃H₇)</option>
+    <option value="CH(CH3)2">Изопропил (CH(CH₃)₂)</option>
+    <!---<option value="=CH2">Метилен (=CH₂)</option>--->
+    <option value="O">Кислород (=O)</option>
+    <option value="OH">Гидрокил (OH)</option>
+    <option value="C6H5">Фенил (C₆H₅)</option>
+    <option value="F">Фтор (F)</option>
+    <option value="Cl">Хлор (Cl)</option>
+    <option value="Br">Бром (Br)</option>
+    <option value="I">Иод (I)</option>
+    </option>
+</select>
+
+    <button id="confirmHaloBtn">Подтвердить</button>
+</div>
+
+<div id="modalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:white; padding:30px; border-radius:15px; width:85%; max-width:550px; position:relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <span id="closeModal" style="position:absolute; top:10px; right:20px; cursor:pointer; font-size:28px; color:#999;">&times;</span>
+        <h2 id="wikiTitle" style="color:#2c3e50; border-bottom:2px solid #2ecc71; padding-bottom:10px; margin-top:0;"></h2>
+        <div id="wikiText" style="line-height:1.6; color:#333; max-height:60vh; overflow-y:auto;"></div>
+    </div>
+</div>
+
+<canvas id="moleculeCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('moleculeCanvas');
+const ctx = canvas.getContext('2d');
+const select = document.getElementById('alkaneSelect');
+const resetBtn = document.getElementById('resetBtn');
+const menu = document.getElementById('halogen-menu');
+const haloInternalSelect = document.getElementById('haloInternalSelect');
+const confirmHaloBtn = document.getElementById('confirmHaloBtn');
+const errorDisplay = document.getElementById('errorDisplay');
+const nameDisplay = document.getElementById('nameDisplay'); // Добавлено объявление
+
+let chemistryDB = {}; // Изначально база пуста
+
+// Функция для загрузки Excel и заполнения базы
+async function loadDatabase() {
+    try {
+        const response = await fetch('database.xlsx'); 
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames]; // Берем первый лист
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        jsonData.forEach(item => {
+            // Используем ТОЧНЫЕ названия колонок из вашего скриншота
+            const nameKey = item.Имя.toString().trim();
+            const dataObject = {
+                properties: `${item['Физ.Свойства'] || "—"} / ${item['Хим.Свойства'] || "—"}`,
+                prod: item.Получение || "—",
+                use: item.Применение || "—"
+            };
+            chemistryDB[nameKey] = dataObject; // Ключ "Этан"
+            chemistryDB[nameKey.toLowerCase()] = dataObject; // Ключ "этан"
+        });
+        console.log("База данных загружена успешно:", chemistryDB);
+        
+        // <<< АКТИВИРУЕМ КНОПКУ ТОЛЬКО ПОСЛЕ УСПЕШНОЙ ЗАГРУЗКИ >>>
+        initializeInfoButton(); 
+
+    } catch (e) {
+        console.error("Ошибка загрузки БД. Убедитесь, что вы используете Live Server и файл database.xlsx существует!", e);
+    }
+}
+
+// Новая функция, которая назначает действие кнопке infoBtn
+function initializeInfoButton() {
+    document.getElementById('infoBtn').onclick = () => {
+        // Убедитесь, что nameDisplay показывает верное имя вещества, например "Этан"
+        const currentName = nameDisplay.innerText.trim();
+        const data = chemistryDB[currentName] || chemistryDB[currentName.toLowerCase()];
+        
+        document.getElementById('wikiTitle').innerText = currentName;
+        const textBox = document.getElementById('wikiText');
+
+        if (data) {
+            textBox.innerHTML = `
+                <p><strong>🧪 Свойства:</strong><br>${data.properties}</p>
+                <p><strong>⚗️ Получение:</strong><br>${data.prod}</p>
+                <p><strong>🏗️ Использование:</strong><br>${data.use}</p>
+            `;
+        } else {
+            textBox.innerHTML = `<p>Информация о "${currentName}" в Excel не найдена.</p>`;
+        }
+        document.getElementById('modalOverlay').style.display = 'flex';
+    };
+}
+
+loadDatabase(); // Запускаем процесс загрузки самым первым делом
+
+
+
+
+
+let mode = 'linear', n = 2, bondStates = [], substitutions = {}, activeHKey = null;
+const spacing = 120;
+const haloColors = { 
+    'F': '#ffffcc', 
+    'Cl': '#98fb98', 
+    'Br': '#a52a2a', 
+    'I': '#9370db', 
+    'H': '#fff', 
+    'CH3': '#fff', 
+    'C2H5': '#fff', 
+    'C3H7': '#fff',
+    'CH(CH3)2': '#fff',
+    'C6H5': '#fff',
+    'O': '#ff4d4d',
+    'OH': '#fff'
+};
+
+// Вспомогательная функция для расчета занятой валентности углерода
+function getUsedValence(idx) {
+    let v = 0;
+    
+    // 1. Связи углеродного скелета (C-C, C=C, C≡C)
+    // Проверяем связь слева от текущего атома
+    if (idx > 0) {
+        v += (bondStates[idx - 1] || 1); 
+    }
+    // Проверяем связь справа от текущего атома
+    if (idx < n - 1) {
+        v += (bondStates[idx] || 1);
+    }
+    
+    // 2. Связи с установленными радикалами (U, D, L, R)
+    const directions = ['U', 'D', 'L', 'R'];
+    directions.forEach(pos => {
+        let subst = substitutions[`${idx}_${pos}`];
+        if (subst) {
+            // Если установлен Кислород (=O) или Метилен (=CH2), они забирают 2 валентности.
+            // Остальные (H, Cl, OH, CH3, C6H5 и т.д.) забирают 1 валентность.
+            if (subst === "O" || subst === "=CH2") {
+                v += 2;
+            } else {
+                v += 1;
+            }
+        }
+    });
+    
+    return v;
+}
+
+
+
+
+// Отрисовка атома с поддержкой нижних индексов
+// Отрисовка атома с поддержкой нижних индексов и сложных радикалов
+function drawAtom(x, y, symbol, color, isSmall, bondAngle = 0) {
+    const ctx = canvas.getContext('2d');
+    
+    // 1. КИСЛОРОД (Двойная связь =O, кетоны/альдегиды)
+    if (symbol === 'O') {
+        const dx = Math.cos(bondAngle);
+        const dy = Math.sin(bondAngle);
+        const ox = -dy * 4.5; 
+        const oy = dx * 4.5;
+        const d = spacing; 
+
+        ctx.strokeStyle = "#333"; 
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        // Рисуем две линии от центра углерода до края атома кислорода
+        ctx.moveTo(x - dx * d + ox, y - dy * d + oy); 
+        ctx.lineTo(x - dx * 20 + ox, y - dy * 20 + oy);
+        ctx.moveTo(x - dx * d - ox, y - dy * d - oy); 
+        ctx.lineTo(x - dx * 20 - ox, y - dy * 20 - oy);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.fillStyle = "#ff4d4d"; // Красный для кислорода
+        ctx.fill();
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.font = "bold 16px Arial";
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("O", x, y);
+        return;
+    }
+
+    // 2. ГИДРОКСИЛЬНАЯ ГРУППА (Спирты/Фенолы -OH)
+    if (symbol === 'OH') {
+        ctx.beginPath();
+        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.font = "bold 15px Arial";
+        ctx.fillStyle = "#000";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("OH", x, y);
+        return;
+    }
+
+    // 3. ФЕНИЛ (C6H5 - кольцо)
+    if (symbol === 'C6H5') {
+        const r = 22; 
+        const centerX = x + r * Math.cos(bondAngle);
+        const centerY = y + r * Math.sin(bondAngle);
+
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (bondAngle + Math.PI) + (i * Math.PI / 3);
+            const vx = centerX + r * Math.cos(a);
+            const vy = centerY + r * Math.sin(a);
+            if (i === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, r * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+        return; 
+    }
+
+    // 4. МЕТИЛЕН-РАДИКАЛ (=CH2)
+    if (symbol === '=CH2') {
+        const dx = Math.cos(bondAngle);
+        const dy = Math.sin(bondAngle);
+        const ox = -dy * 4; const oy = dx * 4;
+        ctx.strokeStyle = "#444"; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x - dx * 15 + ox, y - dy * 15 + oy); ctx.lineTo(x + ox, y + oy);
+        ctx.moveTo(x - dx * 15 - ox, y - dy * 15 - oy); ctx.lineTo(x - ox, y - oy);
+        ctx.stroke();
+        drawAtom(x, y, 'CH2', 'transparent', false);
+        return;
+    }
+
+    // 5. ИЗОПРОПИЛ (CH(CH3)2)
+    if (symbol === 'CH(CH3)2') {
+        const d = 40;
+        const a1 = bondAngle + Math.PI / 4; const a2 = bondAngle - Math.PI / 4;
+        ctx.strokeStyle = "#444"; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y); ctx.lineTo(x + d * Math.cos(a1), y + d * Math.sin(a1));
+        ctx.moveTo(x, y); ctx.lineTo(x + d * Math.cos(a2), y + d * Math.sin(a2));
+        ctx.stroke();
+        drawAtom(x, y, 'CH', 'transparent', false);
+        return;
+    }
+
+    // 6. СТАНДАРТНАЯ ОТРИСОВКА (C, H, Cl, F и др.)
+    const isTransparent = color === 'transparent';
+    if (!isTransparent) {
+        ctx.beginPath();
+        const radius = symbol.length > 2 ? 28 : (isSmall ? 18 : 24);
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = color || '#fff';
+        ctx.fill();
+        ctx.strokeStyle = "#333";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    ctx.font = isSmall ? "bold 12px Arial" : "bold 15px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = (color === '#a52a2a' || color === '#9370db' || color === '#333') ? "#fff" : "#000";
+
+    const subDigits = { '2': '₂', '3': '₃', '4': '₄', '5': '₅', '7': '₇' };
+    let display = symbol.replace('=', '').split('').map(char => subDigits[char] || char).join('');
+    ctx.fillText(display, x, y);
+}
+
+
+
+// Отрисовка связи C-C
+function drawBondCC(x1, y1, x2, y2, level) {
+    ctx.strokeStyle = "#444"; ctx.lineWidth = 4;
+    let dx = y2 - y1, dy = x1 - x2, len = Math.sqrt(dx * dx + dy * dy); dx /= len; dy /= len;
+    if (level === 1) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+    else if (level === 2) {
+        ctx.beginPath(); ctx.moveTo(x1 + dx * 5, y1 + dy * 5); ctx.lineTo(x2 + dx * 5, y2 + dy * 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x1 - dx * 5, y1 - dy * 5); ctx.lineTo(x2 - dx * 5, y2 - dy * 5); ctx.stroke();
+    } else {
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x1 + dx * 9, y1 + dy * 9); ctx.lineTo(x2 + dx * 9, y2 + dy * 9); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x1 - dx * 9, y1 - dy * 9); ctx.lineTo(x2 - dx * 9, y2 - dy * 9); ctx.stroke();
+    }
+}
+
+// Главная функция отрисовки
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const r = spacing;
+
+    const isCycle = ['benzene', 'naphthalene', 'anthracene'].includes(mode);
+
+    if (isCycle) {
+        // --- ЛОГИКА ДЛЯ ЦИКЛОВ (Нафталин, Бензол и т.д.) ---
+        const ringCount = (mode === 'benzene') ? 1 : (mode === 'naphthalene' ? 2 : 3);
+        const stepX = r * Math.sqrt(3); 
+        const totalW = (ringCount - 1) * stepX;
+
+        // 1. Скелет и круги
+        ctx.strokeStyle = "#444"; ctx.lineWidth = 4;
+        for (let j = 0; j < ringCount; j++) {
+            const currCenterX = centerX - totalW / 2 + j * stepX;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = -Math.PI / 2 + (i * Math.PI) / 3;
+                const vx = currCenterX + r * Math.cos(a);
+                const vy = centerY + r * Math.sin(a);
+                if (i === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+            }
+            ctx.closePath(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(currCenterX, centerY, r * 0.65, 0, Math.PI * 2);
+            ctx.lineWidth = 2.5; ctx.stroke();
+        }
+
+        // 2. Линии связей
+        for (let j = 0; j < ringCount; j++) {
+            const currCenterX = centerX - totalW / 2 + j * stepX;
+            for (let i = 0; i < 6; i++) {
+                if ((j < ringCount - 1 && (i === 1 || i === 2)) || (j > 0 && (i === 4 || i === 5))) continue;
+                const a = -Math.PI / 2 + (i * Math.PI) / 3;
+                const vx = currCenterX + r * Math.cos(a), vy = centerY + r * Math.sin(a);
+                let sym = substitutions[`${j}_${i}_R`] || 'H';
+                if (sym === 'O') continue;
+                const tx = vx + Math.cos(a) * (spacing * 0.8), ty = vy + Math.sin(a) * (spacing * 0.8);
+                ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = (sym === 'H' ? "#bbb" : "#444");
+                ctx.moveTo(vx, vy); ctx.lineTo(tx, ty); ctx.stroke();
+            }
+        }
+
+        // 3. Атомы
+        const drawnPoints = new Set();
+        for (let j = 0; j < ringCount; j++) {
+            const currCenterX = centerX - totalW / 2 + j * stepX;
+            for (let i = 0; i < 6; i++) {
+                const a = -Math.PI / 2 + (i * Math.PI) / 3;
+                const vx = currCenterX + r * Math.cos(a), vy = centerY + r * Math.sin(a);
+                const pKey = `${Math.round(vx)}_${Math.round(vy)}`;
+                if (!drawnPoints.has(pKey)) { drawAtom(vx, vy, 'C', '#bdc3c7', false); drawnPoints.add(pKey); }
+                if (!((j < ringCount - 1 && (i === 1 || i === 2)) || (j > 0 && (i === 4 || i === 5)))) {
+                    let sym = substitutions[`${j}_${i}_R`] || 'H';
+                    drawAtom(vx + Math.cos(a) * (spacing * 0.8), vy + Math.sin(a) * (spacing * 0.8), sym, haloColors[sym] || '#fff', true, a);
+                }
+            }
+        }
+
+    } else {
+        // --- ЛОГИКА ДЛЯ ЛИНЕЙНЫХ ЦЕПЕЙ (Исправлено) ---
+        const startX = (canvas.width - (n - 1) * spacing) / 2;
+        const startY = centerY;
+
+        // Слой 1: Линии (Скелет + Заместители)
+        for (let i = 0; i < n - 1; i++) {
+            drawBondCC(startX + i * spacing, startY, startX + (i + 1) * spacing, startY, bondStates[i]);
+        }
+
+        for (let i = 0; i < n; i++) {
+            const cx = startX + i * spacing;
+            let currentV = getUsedValence(i);
+            let bL = i > 0 ? bondStates[i-1] : 0, bR = i < n-1 ? bondStates[i] : 0, maxB = Math.max(bL, bR);
+            let posMap = (maxB === 3) ? [{k:'L', dx:-spacing, dy:0}, {k:'R', dx:spacing, dy:0}].filter((p,idx)=> (idx===0 && i===0) || (idx===1 && i===n-1)) : 
+                         (maxB === 2 && (i===0 || i===n-1)) ? [{k:'U', dx:(i===0?-1:1)*spacing*0.5, dy:-spacing*0.86}, {k:'D', dx:(i===0?-1:1)*spacing*0.5, dy:spacing*0.86}] :
+                         [{k:'U', dx:0, dy:-spacing}, {k:'D', dx:0, dy:spacing}, {k:'L', dx:-spacing, dy:0}, {k:'R', dx:spacing, dy:0}].filter((p,idx)=> idx<2 || (idx===2 && i===0) || (idx===3 && i===n-1));
+
+            posMap.forEach(p => {
+                let sym = substitutions[`${i}_${p.k}`] || 'H';
+                if (sym === 'O') return;
+                let tx = cx + p.dx, ty = startY + p.dy;
+                // Рисуем линию водорода только если валентность позволяет
+                let isAutoH = !substitutions[`${i}_${p.k}`];
+                if (isAutoH && currentV >= 4) return;
+
+                ctx.beginPath(); ctx.lineWidth = 2; ctx.strokeStyle = (sym === 'H' ? "#bbb" : "#444");
+                ctx.moveTo(cx, startY); ctx.lineTo(tx, ty); ctx.stroke();
+                if (isAutoH) currentV++;
+            });
+        }
+
+        // Слой 2: Атомы (Углероды, затем Радикалы поверх линий)
+        for (let i = 0; i < n; i++) {
+            const cx = startX + i * spacing;
+            // Рисуем C в последнюю очередь для каждой точки, чтобы он перекрыл все приходящие линии
+            let currentV = getUsedValence(i);
+            let bL = i > 0 ? bondStates[i-1] : 0, bR = i < n-1 ? bondStates[i] : 0, maxB = Math.max(bL, bR);
+            let posMap = (maxB === 3) ? [{k:'L', dx:-spacing, dy:0}, {k:'R', dx:spacing, dy:0}].filter((p,idx)=> (idx===0 && i===0) || (idx===1 && i===n-1)) : 
+                         (maxB === 2 && (i===0 || i===n-1)) ? [{k:'U', dx:(i===0?-1:1)*spacing*0.5, dy:-spacing*0.86}, {k:'D', dx:(i===0?-1:1)*spacing*0.5, dy:spacing*0.86}] :
+                         [{k:'U', dx:0, dy:-spacing}, {k:'D', dx:0, dy:spacing}, {k:'L', dx:-spacing, dy:0}, {k:'R', dx:spacing, dy:0}].filter((p,idx)=> idx<2 || (idx===2 && i===0) || (idx===3 && i===n-1));
+
+            posMap.forEach(p => {
+                let sym = substitutions[`${i}_${p.k}`] || 'H';
+                let tx = cx + p.dx, ty = startY + p.dy;
+                if (!substitutions[`${i}_${p.k}`] && currentV >= 4) return;
+                drawAtom(tx, ty, sym, haloColors[sym] || '#fff', true, Math.atan2(p.dy, p.dx));
+                if (!substitutions[`${i}_${p.k}`]) currentV++;
+            });
+            
+            drawAtom(cx, startY, 'C', '#bdc3c7', false);
+        }
+    }
+}
+
+
+
+
+
+// Обработка кликов
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const my = (e.clientY - rect.top) * (canvas.height / rect.height);
+    
+    // 1. Закрываем все открытые меню
+    if (menu) menu.style.display = 'none';
+    const ringMenu = document.getElementById('ring-menu');
+    if (ringMenu) ringMenu.style.display = 'none';
+    if (errorDisplay) errorDisplay.innerText = "";
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const r = spacing;
+
+    // --- КРИТИЧЕСКАЯ ПРОВЕРКА: ЕСЛИ МЫ В РЕЖИМЕ КОЛЕЦ ---
+    if (['benzene', 'naphthalene', 'anthracene'].includes(mode)) {
+        const ringCount = mode === 'benzene' ? 1 : (mode === 'naphthalene' ? 2 : 3);
+        const stepX = r * 1.5; 
+        const totalW = (ringCount - 1) * stepX;
+
+        // ПРОВЕРКА КЛИКА ПО СВЯЗЯМ (Достройка системы)
+        for (let j = 0; j < ringCount; j++) {
+            const currCenterX = centerX - totalW / 2 + j * stepX;
+            
+            // Проверяем все 6 граней каждого кольца
+            for (let i = 0; i < 6; i++) {
+                const a1 = -Math.PI / 2 + (i * Math.PI) / 3;
+                const a2 = -Math.PI / 2 + ((i + 1) * Math.PI) / 3;
+                const midX = currCenterX + r * Math.cos((a1 + a2) / 2);
+                const midY = centerY + r * Math.sin((a1 + a2) / 2);
+
+                if (Math.hypot(mx - midX, my - midY) < 30) {
+                    // Разрешаем достройку только на ПРАВОЙ грани ПОСЛЕДНЕГО кольца
+                    if (j === ringCount - 1 && i === 1) { 
+                        if (ringMenu) {
+                            ringMenu.style.left = e.clientX + 'px';
+                            ringMenu.style.top = e.clientY + 'px';
+                            ringMenu.style.display = 'block';
+                        } else {
+                            // Если меню еще не создано в HTML, просто достраиваем сразу
+                            if (mode === 'benzene') mode = 'naphthalene';
+                            else if (mode === 'naphthalene') mode = 'anthracene';
+                            substitutions = {}; updateUI(); draw();
+                        }
+                        return; // ВАЖНО: выходим из функции, чтобы не сработал код ниже!
+                    }
+                }
+            }
+        }
+
+        // ПРОВЕРКА КЛИКА ПО ВЕРШИНАМ (Заместители)
+        for (let j = 0; j < ringCount; j++) {
+            const currCenterX = centerX - totalW / 2 + j * stepX;
+            for (let i = 0; i < 6; i++) {
+                const angle = -Math.PI / 2 + (i * Math.PI) / 3;
+                const hx = currCenterX + Math.cos(angle) * (r + spacing * 0.8);
+                const hy = centerY + Math.sin(angle) * (r + spacing * 0.8);
+                
+                if (Math.hypot(mx - hx, my - hy) < 35) {
+                    activeHKey = `${j}_${i}_R`;
+                    showMenuAt(e.clientX, e.clientY);
+                    return; // Выходим
+                }
+            }
+        }
+        
+        return; // Если мы в режиме колец, линейная логика ниже НИКОГДА не должна выполниться
+    } 
+
+    // --- ЛОГИКА ДЛЯ ЛИНЕЙНЫХ ЦЕПЕЙ (сработает только если mode === 'linear') ---
+    const startX = (canvas.width - (n - 1) * spacing) / 2;
+    
+    // Проверка клика по атомам (заместители)
+    for (let i = 0; i < n; i++) {
+        const cx = startX + i * spacing;
+        // ... (весь ваш код отрисовки кликов U, D, L, R для линейных цепей)
+        // Пример сокращенно:
+        if (Math.hypot(mx - cx, my - (centerY - spacing)) < 35) { 
+            activeHKey = `${i}_U`; showMenuAt(e.clientX, e.clientY); return; 
+        }
+        if (Math.hypot(mx - cx, my - (centerY + spacing)) < 35) { 
+            activeHKey = `${i}_D`; showMenuAt(e.clientX, e.clientY); return; 
+        }
+    }
+
+    // Проверка клика по связям (Дегидрирование)
+    for (let i = 0; i < n - 1; i++) {
+        const xMid = startX + i * spacing + spacing / 2;
+        if (Math.abs(mx - xMid) < 45 && Math.abs(my - centerY) < 30) {
+            bondStates[i] = (bondStates[i] % 3) + 1;
+            updateUI(); draw();
+            return;
+        }
+    }
+});
+
+
+
+
+// Вспомогательная функция для вызова меню
+function showMenuAt(clientX, clientY) {
+    menu.style.left = clientX + 'px';
+    menu.style.top = clientY + 'px';
+    menu.style.display = 'block';
+    if (haloInternalSelect) {
+        haloInternalSelect.value = substitutions[activeHKey] || 'H';
+    }
+}
+
+confirmHaloBtn.onclick = () => {
+    const newVal = haloInternalSelect.value;
+    const [idx, pos] = activeHKey.split('_');
+    const atomIdx = parseInt(idx);
+
+    // --- НОВОЕ: ЗАПРЕТ КИСЛОРОДА В БЕНЗОЛЕ ---
+    if (mode === 'benzene' && (newVal === 'O' || newVal === '=CH2')) {
+        errorDisplay.innerText = "Ошибка: В бензольном кольце нельзя использовать двухвалентные заместители (=O, =CH2)!";
+        return; 
+    }
+
+    // Текущее состояние этого конкретного места
+    const oldVal = substitutions[activeHKey] || 'H';
+
+    if (newVal !== 'H') {
+        // Считаем валентность БЕЗ учета того, что сейчас стоит в этой позиции
+        let currentV = getUsedValence(atomIdx);
+        let valenceOfOld = (oldVal === "O" || oldVal === "=CH2" ? 2 : (oldVal === 'H' ? 0 : 1));
+        let valenceOfNew = (newVal === "O" || newVal === "=CH2" ? 2 : 1);
+
+        // Итоговая валентность после замены
+        if (currentV - valenceOfOld + valenceOfNew > 4) {
+            errorDisplay.innerText = "Ошибка: Валентность IV превышена!";
+            return;
+        }
+    }
+
+    // Если проверка прошла
+    if (newVal === 'H') {
+        delete substitutions[activeHKey];
+    } else {
+        substitutions[activeHKey] = newVal;
+    }
+
+    menu.style.display = 'none';
+    errorDisplay.innerText = ""; 
+    updateUI();
+    draw();
+};
+
+
+
+// Обновление названий и формул
+function updateUI() {
+    const subS = (num) => num > 1 ? num.toString().split('').map(d => "₀₁₂₃₄₅₆₇₈₉"[d]).join('') : "";
+    const roots = ["", "мет", "эт", "проп", "бут", "пент", "гекс", "гепт", "окт", "нон", "дек"];
+    
+    const haloNames = { 
+        'O': 'оксо', 'OH': 'гидрокси', '=CH2': 'метилен',
+        'F': 'фтор', 'Cl': 'хлор', 'Br': 'бром', 'I': 'иод',
+        'CH3': 'метил', 'C2H5': 'этил', 'C3H7': 'пропил', 'CH(CH3)2': 'изопропил', 'C6H5': 'фенил'
+    };
+
+    const isCycle = ['benzene', 'naphthalene', 'anthracene'].includes(mode);
+    
+    // 1. Расчет базовых параметров
+    let c = isCycle ? (mode === 'benzene' ? 6 : (mode === 'naphthalene' ? 10 : 14)) : n;
+    let hBase = isCycle ? (mode === 'benzene' ? 6 : (mode === 'naphthalene' ? 8 : 10)) : (n * 2 + 2);
+    
+    let lExt = (mode === 'linear') ? (function(v){ if(v==='CH3')return 1; if(v==='C2H5')return 2; if(v==='C3H7'||v==='CH(CH3)2')return 3; return 0; })(substitutions[`0_L`] || "") : 0;
+    let rExt = (mode === 'linear') ? (function(v){ if(v==='CH3')return 1; if(v==='C2H5')return 2; if(v==='C3H7'||v==='CH(CH3)2')return 3; return 0; })(substitutions[`${n-1}_R`] || "") : 0;
+    let effN = isCycle ? c : (n + lExt + rExt);
+
+    let h = hBase, oCount = 0, ohCount = 0, f = {}, subs = [];
+
+    // 2. Сбор данных о заместителях
+    for (let k in substitutions) {
+        let t = substitutions[k], parts = k.split('_'), i = parseInt(parts[0]);
+        
+        if (t === 'O') { oCount++; h -= 2; }
+        else if (t === 'OH') { ohCount++; h--; }
+        else if (t === 'CH3') { c += 1; h += 2; } 
+        else if (t === 'C2H5') { c += 2; h += 4; } 
+        else if (t === 'C3H7' || t === 'CH(CH3)2') { c += 3; h += 6; }
+        else if (t === 'C6H5') { c += 6; h += 4; }
+        else { h--; f[t] = (f[t] || 0) + 1; }
+
+        let displayPos = isCycle ? i + 1 : i + 1 + lExt;
+        subs.push({ pos: displayPos, type: t });
+    }
+
+    // 3. Формирование названия
+    let root = roots[effN] || "поли", suffix = "ан";
+    
+    if (isCycle) {
+        root = ""; 
+        if (mode === 'benzene') {
+            suffix = (ohCount > 0 && !oCount) ? "фенол" : "бензол";
+        } else if (mode === 'naphthalene') {
+            if (ohCount > 0) {
+                let p = subs.find(s => s.type === 'OH').pos;
+                // В нафталине 1,4,5,8 — это альфа-позиции (1-нафтол)
+                suffix = (p === 1 || p === 4 || p === 5 || p === 8) ? "1-нафтол" : "2-нафтол";
+            } else {
+                suffix = "нафталин";
+            }
+        } else if (mode === 'anthracene') {
+            suffix = "антрацен";
+        }
+    } else {
+        // Линейная логика (кратные связи)
+        let ds = [], ts = [];
+        bondStates.forEach((s, idx) => { if(s===2) ds.push(idx+1+lExt); if(s===3) ts.push(idx+1+lExt); });
+        if (ds.length || ts.length || oCount || ohCount) {
+            if (ds.length + ts.length > 1 || oCount || ohCount) root += "а";
+            let temp = "";
+            if (ds.length) temp += "-" + ds.join(',') + "-ен";
+            if (ts.length) temp += (temp ? "-" : "") + ts.join(',') + "-ин";
+            if (ohCount) temp += "-" + subs.filter(s=>s.type==='OH').map(s=>s.pos).join(',') + "-ол";
+            if (oCount) temp += "-" + subs.filter(s=>s.type==='O').map(s=>s.pos).join(',') + "-он";
+            suffix = temp || "ан";
+        }
+    }
+
+    // Сборка префиксов (метил, хлор...)
+    let typeGroups = {};
+    subs.filter(s => s.type !== 'O' && s.type !== 'OH').forEach(s => {
+        if (!typeGroups[s.type]) typeGroups[s.type] = [];
+        typeGroups[s.type].push(s.pos);
+    });
+    let substText = Object.keys(haloNames).filter(k => typeGroups[k]).map(key => {
+        let p = typeGroups[key].sort((a,b)=>a-b);
+        let pref = ["", "", "ди", "три", "тетра", "пента"][p.length] || "";
+        return p.join(',') + "-" + pref + haloNames[key];
+    }).join('-');
+
+    let fullName = (substText + (substText && root ? "-" : "") + root + suffix).replace(/-+/g, '-').replace(/^-|-$/g, '');
+    fullName = fullName.charAt(0).toUpperCase() + fullName.slice(1);
+
+    // Тривиальные названия
+    const ex = { "Пропан-2-он": "Ацетон", "Метилбензол": "Толуол", "Этан-ол": "Этанол" };
+    for (let k in ex) { if (fullName.includes(k)) fullName = ex[k]; }
+    document.getElementById('nameDisplay').innerText = fullName;
+
+    // 4. Формирование формулы (C10H7OH)
+    let formHTML = "";
+    if (isCycle) {
+        let baseC = (mode==='benzene'?6:(mode==='naphthalene'?10:14));
+        let baseH = (mode==='benzene'?6:(mode==='naphthalene'?8:10));
+        let usedH = Object.keys(substitutions).length;
+        formHTML = `C${subS(baseC)}H${subS(baseH - usedH)}`;
+        
+        let groups = {};
+        for (let k in substitutions) { groups[substitutions[k]] = (groups[substitutions[k]] || 0) + 1; }
+        for (let s in groups) { formHTML += (groups[s] > 1 ? `(${s})${subS(groups[s])}` : s); }
+    } else {
+        formHTML = "C" + subS(c) + (h > 0 ? "H" + subS(h) : "");
+        if (ohCount) formHTML += (ohCount > 1 ? `(OH)${subS(ohCount)}` : "OH");
+        if (oCount) formHTML += "O" + subS(oCount);
+        ['F', 'Cl', 'Br', 'I'].forEach(t => { if (f[t]) formHTML += t + subS(f[t]); });
+    }
+    document.getElementById('formulaDisplay').innerText = formHTML.replace(/\d/g, d => "₀₁₂₃₄₅₆₇₈₉"[d]);
+}
+
+
+
+function addFusedRing() {
+    if (mode === 'benzene') {
+        mode = 'naphthalene';
+    } else if (mode === 'naphthalene') {
+        mode = 'anthracene';
+    } else {
+        if (errorDisplay) errorDisplay.innerText = "Максимальная длина системы (3 кольца) достигнута";
+        return;
+    }
+    substitutions = {}; // Очищаем радикалы, так как нумерация вершин меняется
+    updateUI();
+    draw();
+}
+
+
+
+
+
+// Логика кнопки открытия окна
+document.getElementById('infoBtn').onclick = () => {
+    const currentName = document.getElementById('nameDisplay').innerText.trim();
+    // Ищем в базе данных
+    const data = chemistryDB[currentName] || chemistryDB[currentName.toLowerCase()];
+    
+    document.getElementById('wikiTitle').innerText = currentName;
+    const textBox = document.getElementById('wikiText');
+
+    if (data) {
+        textBox.innerHTML = `
+            <p><strong>🧪 Свойства:</strong><br>${data.properties}</p>
+            <p><strong>⚗️ Получение:</strong><br>${data.prod}</p>
+            <p><strong>🏗️ Использование:</strong><br>${data.use}</p>
+        `;
+    } else {
+        textBox.innerHTML = `<p>Информация о "${currentName}" в Excel не найдена.</p>`;
+    }
+    document.getElementById('modalOverlay').style.display = 'flex';
+};
+
+// Логика закрытия окна
+document.getElementById('closeModal').onclick = () => {
+    document.getElementById('modalOverlay').style.display = 'none';
+};
+
+const ringMenu = document.getElementById('ring-menu');
+
+function init() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    mode = select.value === 'benzene' ? 'benzene' : 'linear';
+    n = mode === 'benzene' ? 6 : parseInt(select.value);
+    bondStates = new Array(n - 1).fill(1); substitutions = {};
+    updateUI(); draw();
+}
+
+select.onchange = init; 
+resetBtn.onclick = init;
+
+window.onresize = () => { 
+    canvas.width = window.innerWidth; 
+    canvas.height = window.innerHeight; 
+    draw(); 
+}; // <-- ВАЖНО: эта скобка закрывает onresize и исправляет ошибку
+
+document.getElementById('confirmRingBtn').onclick = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (mode === 'benzene') {
+        mode = 'naphthalene';
+        n = 10; // Устанавливаем 10 углеродов для нафталина
+    } else if (mode === 'naphthalene') {
+        mode = 'anthracene';
+        n = 14; // Устанавливаем 14 углеродов для антрацена
+    }
+
+    substitutions = {}; // Очищаем радикалы, так как скелет изменился
+    if (ringMenu) ringMenu.style.display = 'none';
+
+    // ВАЖНО: сбрасываем bondStates, чтобы не было конфликтов с линейной логикой
+    bondStates = new Array(n - 1).fill(1);
+
+    updateUI();
+    draw();
+};
+
+
+document.getElementById('cancelRingBtn').onclick = function(e) {
+    e.stopPropagation();
+    if (ringMenu) ringMenu.style.display = 'none';
+};
+
+init(); // Инициализация приложения
+</script>
+</body>
+</html>
